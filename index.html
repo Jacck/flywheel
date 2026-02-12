@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flywheel — Autonomous Agent Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-void: #0a0a0f;
+    --bg-surface: #111118;
+    --bg-elevated: #1a1a24;
+    --bg-hover: #222230;
+    --border: #2a2a3a;
+    --border-active: #4a4a6a;
+    --text-primary: #e8e8f0;
+    --text-secondary: #8888a0;
+    --text-muted: #555568;
+    --accent-cyan: #00d4ff;
+    --accent-green: #00ff88;
+    --accent-amber: #ffaa00;
+    --accent-red: #ff4466;
+    --accent-purple: #aa66ff;
+    --glow-cyan: rgba(0, 212, 255, 0.15);
+    --glow-green: rgba(0, 255, 136, 0.15);
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-void);
+    color: var(--text-primary);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Ambient background ── */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(ellipse at 30% 20%, rgba(0, 212, 255, 0.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 80%, rgba(170, 102, 255, 0.02) 0%, transparent 50%);
+    animation: drift 30s ease-in-out infinite alternate;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  @keyframes drift {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    100% { transform: translate(-3%, 2%) rotate(1deg); }
+  }
+
+  /* ── Layout ── */
+  .app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 16px; }
+
+  .logo {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    animation: spin-slow 8s linear infinite;
+  }
+
+  @keyframes spin-slow { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+  .logo-text {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--text-primary), var(--accent-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  .status-badge {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px;
+    border-radius: 100px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    box-shadow: 0 0 8px var(--accent-green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .status-dot.idle { background: var(--accent-amber); box-shadow: 0 0 8px var(--accent-amber); }
+  .status-dot.error { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── Grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+
+  .grid-2 { grid-template-columns: 2fr 1fr; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    transition: border-color 0.2s;
+  }
+
+  .card:hover { border-color: var(--border-active); }
+
+  .card-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title .icon { font-size: 14px; }
+
+  /* ── Stat cards ── */
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-value.cyan { color: var(--accent-cyan); }
+  .stat-value.green { color: var(--accent-green); }
+  .stat-value.amber { color: var(--accent-amber); }
+  .stat-value.purple { color: var(--accent-purple); }
+
+  .stat-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  /* ── Activity feed ── */
+  .feed { list-style: none; }
+
+  .feed-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .feed-item:last-child { border-bottom: none; }
+
+  .feed-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+
+  .feed-dot.commit { background: var(--accent-cyan); }
+  .feed-dot.pr { background: var(--accent-green); }
+  .feed-dot.issue { background: var(--accent-amber); }
+  .feed-dot.error { background: var(--accent-red); }
+
+  .feed-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .feed-text strong {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .feed-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* ── Task queue ── */
+  .task {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-elevated);
+    border-radius: var(--radius);
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .task:hover {
+    border-color: var(--accent-cyan);
+    background: var(--bg-hover);
+  }
+
+  .task-left { display: flex; align-items: center; gap: 12px; }
+
+  .task-id {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent-cyan);
+    background: var(--glow-cyan);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .task-title { font-size: 13px; color: var(--text-primary); }
+
+  .task-status {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 100px;
+  }
+
+  .task-status.queued { color: var(--accent-amber); background: rgba(255,170,0,0.1); }
+  .task-status.running { color: var(--accent-cyan); background: var(--glow-cyan); }
+  .task-status.done { color: var(--accent-green); background: var(--glow-green); }
+
+  /* ── Config panel ── */
+  .config-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .config-row:last-child { border-bottom: none; }
+
+  .config-key {
+    color: var(--text-secondary);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .config-val {
+    color: var(--accent-cyan);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  /* ── Terminal ── */
+  .terminal {
+    background: #050508;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.8;
+    max-height: 280px;
+    overflow-y: auto;
+    color: var(--text-secondary);
+  }
+
+  .terminal .prompt { color: var(--accent-green); }
+  .terminal .info { color: var(--accent-cyan); }
+  .terminal .warn { color: var(--accent-amber); }
+  .terminal .err { color: var(--accent-red); }
+  .terminal .dim { color: var(--text-muted); }
+
+  /* ── Setup banner ── */
+  .setup-banner {
+    background: linear-gradient(135deg, rgba(0,212,255,0.05), rgba(170,102,255,0.05));
+    border: 1px dashed var(--border-active);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+
+  .setup-banner h2 {
+    font-family: var(--mono);
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: var(--accent-cyan);
+  }
+
+  .setup-banner p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto 20px;
+    line-height: 1.6;
+  }
+
+  .setup-steps {
+    text-align: left;
+    max-width: 520px;
+    margin: 0 auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 2;
+  }
+
+  .setup-steps code {
+    background: var(--bg-elevated);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--accent-cyan);
+  }
+
+  /* ── Input area ── */
+  .input-area {
+    display: flex; gap: 12px;
+    margin-top: 16px;
+  }
+
+  .input-area input {
+    flex: 1;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .input-area input:focus { border-color: var(--accent-cyan); }
+  .input-area input::placeholder { color: var(--text-muted); }
+
+  .btn {
+    padding: 12px 24px;
+    border-radius: var(--radius);
+    border: 1px solid var(--accent-cyan);
+    background: var(--glow-cyan);
+    color: var(--accent-cyan);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { background: rgba(0,212,255,0.25); }
+
+  .btn-sm {
+    padding: 6px 14px;
+    font-size: 11px;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    padding: 32px 0 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    margin-top: 32px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .grid, .grid-2 { grid-template-columns: 1fr; }
+    .header { flex-direction: column; gap: 16px; align-items: flex-start; }
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">⚡</div>
+      <div>
+        <div class="logo-text">flywheel</div>
+        <div class="logo-sub">Autonomous Agent</div>
+      </div>
+    </div>
+    <div class="status-badge">
+      <div class="status-dot idle" id="statusDot"></div>
+      <span id="statusText">Awaiting Connection</span>
+    </div>
+  </header>
+
+  <!-- Setup Banner (shown when no repo is configured) -->
+  <div class="setup-banner" id="setupBanner">
+    <h2>⚙ Initial Setup Required</h2>
+    <p>Connect this dashboard to your GitHub repository to activate the autonomous agent loop.</p>
+    <div class="setup-steps">
+      1. Add <code>ANTHROPIC_API_KEY</code> to repo Secrets<br>
+      2. Install Claude GitHub App → <code>github.com/apps/claude</code><br>
+      3. Push this repo to <code>Jacck/flywheel</code><br>
+      4. Enable GitHub Pages (main branch, root)<br>
+      5. Create an issue labeled <code>agent-task</code> to start<br>
+    </div>
+    <div class="input-area" style="max-width: 520px; margin: 20px auto 0;">
+      <input type="text" id="repoInput" placeholder="owner/repo (e.g. Jacck/flywheel)" value="Jacck/flywheel">
+    </div>
+    <div class="input-area" style="max-width: 520px; margin: 8px auto 0;">
+      <input type="password" id="patInput" placeholder="GitHub PAT (optional — enables creating issues from dashboard)">
+    </div>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; font-family: var(--mono); max-width: 520px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+      Dashboard reads public repo data without a token. PAT only needed to create issues directly.<br>
+      PAT stored in browser only, never committed. Scope: <code style="background:var(--bg-elevated);padding:1px 5px;border-radius:3px;color:var(--accent-cyan);">public_repo</code>
+      · <a href="https://github.com/settings/tokens/new?scopes=public_repo&description=Flywheel+Dashboard" target="_blank" style="color: var(--accent-cyan);">Generate token</a>
+    </div>
+    <div style="margin-top: 12px;">
+      <button class="btn" onclick="connectRepo()">Connect</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid" id="statsGrid" style="display: none;">
+    <div class="card">
+      <div class="card-title"><span class="icon">◉</span> Total Tasks</div>
+      <div class="stat-value cyan" id="statTasks">—</div>
+      <div class="stat-label">issues processed</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">◈</span> Commits</div>
+      <div class="stat-value green" id="statCommits">—</div>
+      <div class="stat-label">by agent</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">◇</span> PRs Merged</div>
+      <div class="stat-value purple" id="statPRs">—</div>
+      <div class="stat-label">autonomous merges</div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="grid grid-2" id="mainGrid" style="display: none;">
+
+    <!-- Activity Feed -->
+    <div class="card">
+      <div class="card-title"><span class="icon">▸</span> Activity Feed</div>
+      <ul class="feed" id="activityFeed">
+        <li class="feed-item">
+          <div class="feed-dot commit"></div>
+          <div>
+            <div class="feed-text">Connecting to repository...</div>
+            <div class="feed-time">now</div>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Right column -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+
+      <!-- Agent Config -->
+      <div class="card">
+        <div class="card-title"><span class="icon">⊞</span> Agent Config</div>
+        <div class="config-row">
+          <span class="config-key">model</span>
+          <span class="config-val">claude-sonnet-4</span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">mode</span>
+          <span class="config-val">autonomous</span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">schedule</span>
+          <span class="config-val">daily 06:00 UTC</span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">repo</span>
+          <span class="config-val" id="configRepo">—</span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">pages</span>
+          <span class="config-val" id="configPages">—</span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">auth</span>
+          <span class="config-val" id="configAuth">—</span>
+        </div>
+        <div style="margin-top: 12px;">
+          <button class="btn btn-sm" onclick="disconnect()" style="border-color: var(--accent-red); color: var(--accent-red); background: rgba(255,68,102,0.1);">Disconnect</button>
+        </div>
+      </div>
+
+      <!-- Workflow Runs -->
+      <div class="card">
+        <div class="card-title"><span class="icon">⟳</span> Recent Workflow Runs</div>
+        <div id="workflowRuns">
+          <div style="color: var(--text-muted); font-size: 13px; padding: 8px 0;">Connect to see workflow status...</div>
+        </div>
+      </div>
+
+      <!-- Quick dispatch -->
+      <div class="card">
+        <div class="card-title"><span class="icon">⊳</span> Dispatch Task</div>
+        <div class="input-area" style="flex-direction: column;">
+          <input type="text" id="taskInput" placeholder="Describe a task for the agent...">
+          <button class="btn" onclick="dispatchTask()" id="dispatchBtn" style="width: 100%;">Create Issue → Agent</button>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; font-family: var(--mono);">
+          <span id="dispatchHint">Creates a GitHub Issue with label <code style="background:var(--bg-elevated);padding:1px 5px;border-radius:3px;color:var(--accent-cyan);">agent-task</code> — triggers agent automatically</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Queue -->
+  <div class="card" id="taskQueueCard" style="display: none; margin-top: 20px;">
+    <div class="card-title"><span class="icon">☰</span> Task Queue</div>
+    <div id="taskQueue">
+      <div style="color: var(--text-muted); font-size: 13px; padding: 8px 0;">Loading issues...</div>
+    </div>
+  </div>
+
+  <!-- Terminal Log -->
+  <div class="card" id="terminalCard" style="margin-top: 20px;">
+    <div class="card-title"><span class="icon">&gt;_</span> Agent Log</div>
+    <div class="terminal" id="terminal">
+      <div class="dim">[flywheel] initializing dashboard v1.0.0</div>
+      <div class="info">[flywheel] waiting for repository connection...</div>
+      <div class="prompt">$ _</div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    flywheel v1.0.0 · powered by Claude Code · hosted on GitHub Pages
+  </footer>
+</div>
+
+<script>
+  // ── State ──
+  const state = {
+    repo: localStorage.getItem('flywheel_repo') || '',
+    pat: localStorage.getItem('flywheel_pat') || '',
+    connected: false,
+  };
+
+  const GITHUB_API = 'https://api.github.com';
+  const $ = id => document.getElementById(id);
+
+  // ── Terminal logging ──
+  function log(msg, type = 'dim') {
+    const terminal = $('terminal');
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const line = document.createElement('div');
+    line.className = type;
+    line.textContent = `[${time}] ${msg}`;
+    terminal.insertBefore(line, terminal.lastElementChild);
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  // ── Connect to repo ──
+  function connectRepo() {
+    const repo = $('repoInput').value.trim();
+    const pat = $('patInput') ? $('patInput').value.trim() : '';
+    if (!repo || !repo.includes('/')) {
+      log('Invalid repo format. Use owner/repo', 'err');
+      return;
+    }
+    state.repo = repo;
+    state.pat = pat;
+    localStorage.setItem('flywheel_repo', repo);
+    if (pat) localStorage.setItem('flywheel_pat', pat);
+    log(`Connecting to ${repo}...`, 'info');
+    init();
+  }
+
+  // ── Disconnect ──
+  function disconnect() {
+    state.repo = '';
+    state.pat = '';
+    state.connected = false;
+    localStorage.removeItem('flywheel_repo');
+    localStorage.removeItem('flywheel_pat');
+    log('Disconnected. Credentials cleared.', 'warn');
+
+    $('setupBanner').style.display = 'block';
+    $('statsGrid').style.display = 'none';
+    $('mainGrid').style.display = 'none';
+    $('taskQueueCard').style.display = 'none';
+    $('statusDot').className = 'status-dot idle';
+    $('statusText').textContent = 'Disconnected';
+    if ($('patInput')) $('patInput').value = '';
+  }
+
+  // ── Fetch GitHub data (with optional PAT auth) ──
+  async function ghFetch(endpoint, options = {}) {
+    try {
+      const headers = { 'Accept': 'application/vnd.github.v3+json' };
+      if (state.pat) headers['Authorization'] = `Bearer ${state.pat}`;
+      const res = await fetch(`${GITHUB_API}/repos/${state.repo}${endpoint}`, {
+        headers,
+        ...options,
+      });
+      if (res.status === 401) {
+        log('Authentication failed. Check your PAT.', 'err');
+        $('configAuth').textContent = 'invalid';
+        $('configAuth').style.color = 'var(--accent-red)';
+        return null;
+      }
+      if (res.status === 403) {
+        const remaining = res.headers.get('x-ratelimit-remaining');
+        if (remaining === '0') {
+          const reset = new Date(res.headers.get('x-ratelimit-reset') * 1000);
+          log(`Rate limited. Resets at ${reset.toLocaleTimeString()}`, 'warn');
+        }
+        return null;
+      }
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return await res.json();
+    } catch (e) {
+      log(`API error: ${e.message}`, 'err');
+      return null;
+    }
+  }
+
+  // ── POST to GitHub API (for creating issues) ──
+  async function ghPost(endpoint, body) {
+    try {
+      const headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      };
+      if (state.pat) headers['Authorization'] = `Bearer ${state.pat}`;
+      const res = await fetch(`${GITHUB_API}/repos/${state.repo}${endpoint}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return await res.json();
+    } catch (e) {
+      log(`API POST error: ${e.message}`, 'err');
+      return null;
+    }
+  }
+
+  // ── Initialize dashboard ──
+  async function init() {
+    if (!state.repo) return;
+
+    $('repoInput').value = state.repo;
+    $('configRepo').textContent = state.repo;
+    $('configPages').textContent = `${state.repo.split('/')[0]}.github.io/${state.repo.split('/')[1]}`;
+
+    // Show auth status
+    if (state.pat) {
+      $('configAuth').textContent = 'PAT ✓ (read + write)';
+      $('configAuth').style.color = 'var(--accent-green)';
+      log('PAT provided — direct issue creation enabled', 'info');
+    } else {
+      $('configAuth').textContent = 'read-only (no PAT)';
+      $('configAuth').style.color = 'var(--text-secondary)';
+      log('No PAT — dashboard is read-only. Add PAT to create issues directly.', 'dim');
+    }
+
+    // Test connection
+    const repoData = await ghFetch('');
+    if (!repoData) {
+      log('Failed to connect. Check repo name or PAT.', 'err');
+      $('statusDot').className = 'status-dot error';
+      $('statusText').textContent = 'Connection Failed';
+      return;
+    }
+
+    state.connected = true;
+    log(`Connected to ${repoData.full_name} (${repoData.private ? 'private' : 'public'})`, 'info');
+    log(`Default branch: ${repoData.default_branch}`, 'dim');
+
+    // Show main UI
+    $('setupBanner').style.display = 'none';
+    $('statsGrid').style.display = 'grid';
+    $('mainGrid').style.display = 'grid';
+    $('taskQueueCard').style.display = 'block';
+
+    $('statusDot').className = 'status-dot';
+    $('statusText').textContent = repoData.private ? 'Connected (private)' : 'Connected';
+
+    // Update dispatch hint based on auth
+    if (state.pat) {
+      $('dispatchHint').innerHTML = 'Creates issue directly via API → triggers agent automatically';
+    } else {
+      $('dispatchHint').innerHTML = 'Opens GitHub issue page (add PAT to create directly from here)';
+    }
+
+    // Load data
+    await Promise.all([loadIssues(), loadCommits(), loadPRs(), loadActivity(), loadWorkflowRuns()]);
+
+    // Check rate limit
+    const rateLimit = await ghFetch('');  // rate limit info is in response headers, but let's check
+    log('Dashboard ready. Agent is listening for tasks.', 'prompt');
+  }
+
+  // ── Load issues as tasks ──
+  async function loadIssues() {
+    const issues = await ghFetch('/issues?state=all&labels=agent-task&per_page=20');
+    if (!issues || !Array.isArray(issues)) return;
+
+    const open = issues.filter(i => i.state === 'open').length;
+    const closed = issues.filter(i => i.state === 'closed').length;
+    $('statTasks').textContent = issues.length;
+
+    const queue = $('taskQueue');
+    queue.innerHTML = '';
+
+    if (issues.length === 0) {
+      queue.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; padding: 8px 0;">No agent tasks yet. Use Dispatch Task above to create one.</div>';
+      return;
+    }
+
+    issues.slice(0, 10).forEach(issue => {
+      const status = issue.state === 'closed' ? 'done' : 'queued';
+      const el = document.createElement('div');
+      el.className = 'task';
+      el.onclick = () => window.open(issue.html_url, '_blank');
+      el.innerHTML = `
+        <div class="task-left">
+          <span class="task-id">#${issue.number}</span>
+          <span class="task-title">${escHtml(issue.title)}</span>
+        </div>
+        <span class="task-status ${status}">${status}</span>
+      `;
+      queue.appendChild(el);
+    });
+
+    log(`Loaded ${issues.length} tasks (${open} open, ${closed} done)`, 'info');
+  }
+
+  // ── Load commits ──
+  async function loadCommits() {
+    const commits = await ghFetch('/commits?per_page=50');
+    if (!commits || !Array.isArray(commits)) { $('statCommits').textContent = '0'; return; }
+
+    const agentCommits = commits.filter(c =>
+      c.commit.message.includes('[claude') ||
+      c.commit.author?.name?.toLowerCase().includes('claude') ||
+      c.author?.login?.includes('claude') ||
+      c.author?.login?.includes('[bot]')
+    );
+    $('statCommits').textContent = agentCommits.length || commits.length;
+    log(`Found ${commits.length} commits (${agentCommits.length} by agent)`, 'dim');
+  }
+
+  // ── Load PRs ──
+  async function loadPRs() {
+    const prs = await ghFetch('/pulls?state=all&per_page=50');
+    if (!prs || !Array.isArray(prs)) { $('statPRs').textContent = '0'; return; }
+    const merged = prs.filter(p => p.merged_at);
+    $('statPRs').textContent = merged.length;
+    log(`Found ${prs.length} PRs (${merged.length} merged)`, 'dim');
+  }
+
+  // ── Load workflow runs (requires PAT for private repos) ──
+  async function loadWorkflowRuns() {
+    const runs = await ghFetch('/actions/runs?per_page=5');
+    const container = $('workflowRuns');
+    container.innerHTML = '';
+
+    if (!runs || !runs.workflow_runs || runs.workflow_runs.length === 0) {
+      container.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; padding: 8px 0;">No workflow runs yet.</div>';
+      return;
+    }
+
+    runs.workflow_runs.forEach(run => {
+      let statusClass = 'queued';
+      let statusLabel = run.status;
+      if (run.conclusion === 'success') { statusClass = 'done'; statusLabel = 'success'; }
+      else if (run.conclusion === 'failure') { statusClass = 'queued'; statusLabel = 'failed'; }
+      else if (run.status === 'in_progress') { statusClass = 'running'; statusLabel = 'running'; }
+
+      const el = document.createElement('div');
+      el.className = 'task';
+      el.onclick = () => window.open(run.html_url, '_blank');
+      el.innerHTML = `
+        <div class="task-left">
+          <span class="task-id" style="${run.conclusion === 'failure' ? 'color:var(--accent-red);background:rgba(255,68,102,0.1);' : ''}">${run.name.substring(0, 20)}</span>
+          <span class="task-title">${escHtml(run.display_title || run.head_commit?.message?.split('\\n')[0] || 'workflow run')}</span>
+        </div>
+        <span class="task-status ${statusClass}" style="${run.conclusion === 'failure' ? 'color:var(--accent-red);background:rgba(255,68,102,0.1);' : ''}">${statusLabel}</span>
+      `;
+      container.appendChild(el);
+    });
+
+    log(`Loaded ${runs.workflow_runs.length} recent workflow runs`, 'dim');
+  }
+
+  // ── Load activity feed ──
+  async function loadActivity() {
+    const [commits, issues, prs] = await Promise.all([
+      ghFetch('/commits?per_page=5'),
+      ghFetch('/issues?state=all&per_page=5'),
+      ghFetch('/pulls?state=all&per_page=5')
+    ]);
+
+    const feed = $('activityFeed');
+    feed.innerHTML = '';
+
+    const items = [];
+
+    if (commits && Array.isArray(commits)) commits.forEach(c => items.push({
+      type: 'commit',
+      text: `<strong>commit</strong> ${escHtml(c.commit.message.split('\n')[0])}`,
+      time: c.commit.author?.date,
+      url: c.html_url,
+    }));
+
+    if (issues && Array.isArray(issues)) issues.forEach(i => items.push({
+      type: 'issue',
+      text: `<strong>${i.state === 'closed' ? 'closed' : 'opened'}</strong> #${i.number}: ${escHtml(i.title)}`,
+      time: i.updated_at,
+      url: i.html_url,
+    }));
+
+    if (prs && Array.isArray(prs)) prs.forEach(p => items.push({
+      type: 'pr',
+      text: `<strong>PR ${p.merged_at ? 'merged' : p.state}</strong> #${p.number}: ${escHtml(p.title)}`,
+      time: p.updated_at,
+      url: p.html_url,
+    }));
+
+    items.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+    items.slice(0, 15).forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'feed-item';
+      li.style.cursor = 'pointer';
+      li.onclick = () => window.open(item.url, '_blank');
+      li.innerHTML = `
+        <div class="feed-dot ${item.type}"></div>
+        <div>
+          <div class="feed-text">${item.text}</div>
+          <div class="feed-time">${timeAgo(item.time)}</div>
+        </div>
+      `;
+      feed.appendChild(li);
+    });
+  }
+
+  // ── Dispatch a task ──
+  async function dispatchTask() {
+    const title = $('taskInput').value.trim();
+    if (!title) { log('Enter a task description', 'warn'); return; }
+
+    // If we have a PAT, create the issue directly via API
+    if (state.pat) {
+      $('dispatchBtn').textContent = 'Creating...';
+      $('dispatchBtn').disabled = true;
+
+      const issue = await ghPost('/issues', {
+        title: title,
+        body: `## Agent Task\n\n${title}\n\n---\n*Created from Flywheel Dashboard*`,
+        labels: ['agent-task'],
+      });
+
+      $('dispatchBtn').textContent = 'Create Issue → Agent';
+      $('dispatchBtn').disabled = false;
+
+      if (issue) {
+        log(`Created issue #${issue.number}: "${title}" → agent triggered`, 'info');
+        $('taskInput').value = '';
+        // Refresh task queue
+        setTimeout(() => loadIssues(), 1000);
+        setTimeout(() => loadWorkflowRuns(), 5000); // workflow takes a few seconds to start
+      } else {
+        log('Failed to create issue. Check PAT permissions (needs repo scope).', 'err');
+      }
+    } else {
+      // Fallback: open GitHub issue page
+      const url = `https://github.com/${state.repo}/issues/new?title=${encodeURIComponent(title)}&labels=agent-task&body=${encodeURIComponent(`## Agent Task\n\n${title}\n\n---\n*Created from Flywheel Dashboard*`)}`;
+      window.open(url, '_blank');
+      $('taskInput').value = '';
+      log(`Opening GitHub to create task: "${title}"`, 'info');
+    }
+  }
+
+  // ── Helpers ──
+  function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+
+  function timeAgo(date) {
+    if (!date) return '';
+    const s = Math.floor((Date.now() - new Date(date)) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
+  }
+
+  // ── Auto-refresh every 60s ──
+  setInterval(() => {
+    if (state.connected) {
+      log('Refreshing data...', 'dim');
+      Promise.all([loadIssues(), loadCommits(), loadPRs(), loadActivity(), loadWorkflowRuns()]);
+    }
+  }, 60000);
+
+  // ── Boot ──
+  if (state.repo) {
+    $('repoInput').value = state.repo;
+    init();
+  }
+</script>
+
+</body>
+</html>
