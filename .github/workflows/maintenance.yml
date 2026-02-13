@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run Claude Code - Maintenance
-        uses: anthropics/claude-code-action@01e756b
+        uses: anthropics/claude-code-action@01e756b34ef7a1447e9508f674143b07d20c2631
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: "--model claude-haiku-4-5-20251001 --max-turns 25"
