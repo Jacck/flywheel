@@ -15,6 +15,7 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  id-token: write
 
 concurrency:
   group: claude-maintenance
@@ -23,7 +24,6 @@ concurrency:
 jobs:
   autonomous-maintenance:
     runs-on: ubuntu-latest
-    environment: production
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -35,10 +35,8 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: "claude-haiku-4-5-20251001"
-          allowed_tools: "Bash,GitHub,Write,Read,Edit"
-          claude_args: "--max-turns 10"
-          direct_prompt: |
+          claude_args: "--model claude-haiku-4-5-20251001 --max-turns 25"
+          prompt: |
             You are the Flywheel autonomous maintenance agent. Perform these tasks:
 
             ${{ github.event.inputs.task || 'Run standard daily maintenance cycle.' }}
