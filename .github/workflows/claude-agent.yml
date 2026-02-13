@@ -12,6 +12,7 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  id-token: write
 
 # Prevent multiple concurrent runs from stacking up costs
 concurrency:
@@ -34,8 +35,7 @@ jobs:
         github.event.issue.author_association == 'MEMBER'
       )
     runs-on: ubuntu-latest
-    environment: production  # Requires approval if environment protection rules are set
-    timeout-minutes: 15      # Hard timeout to prevent runaway runs
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -46,9 +46,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: "claude-sonnet-4-20250514"
-          allowed_tools: "Bash,GitHub,Write,Read,Edit"
-          claude_args: "--max-turns 25"
+          claude_args: "--model claude-haiku-4-5-20251001 --max-turns 25"
           prompt: |
             You are the Flywheel autonomous coding agent. Your job is to:
             1. Read the issue or comment carefully
