@@ -14,15 +14,12 @@ permissions:
   pull-requests: write
   id-token: write
 
-# Prevent multiple concurrent runs from stacking up costs
 concurrency:
   group: claude-agent
   cancel-in-progress: true
 
 jobs:
   claude-agent:
-    # Trigger on @claude mentions OR issues labeled 'agent-task'
-    # Only respond to repo owner/collaborators (blocks strangers on public repos)
     if: |
       (
         (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
@@ -43,7 +40,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run Claude Code
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@01e756b
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: "--model claude-haiku-4-5-20251001 --max-turns 25"
