@@ -19,42 +19,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  claude-agent:
-    if: |
-      (
-        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'agent-task'))
-      ) && (
-        github.event.sender.login == github.repository_owner ||
-        github.event.issue.author_association == 'OWNER' ||
-        github.event.issue.author_association == 'COLLABORATOR' ||
-        github.event.issue.author_association == 'MEMBER'
-      )
+  claude:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Run Claude Code
-        uses: anthropics/claude-code-action@01e756b34ef7a1447e9508f674143b07d20c2631
+      - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: "--model claude-haiku-4-5-20251001 --max-turns 25"
+          label_trigger: "agent-task"
           prompt: |
-            You are the Flywheel autonomous coding agent. Your job is to:
-            1. Read the issue or comment carefully
-            2. Implement the requested changes to the codebase
-            3. Follow the guidelines in CLAUDE.md
-            4. Create a PR with your changes if working from an issue
-            5. Keep index.html self-contained (single file, no build step)
-            6. Test that HTML is valid before committing
-
-            When implementing features for the dashboard (index.html):
-            - Maintain the existing design system and CSS variables
-            - Add new UI sections as needed
-            - Keep the app functional as a static GitHub Pages site
-            - Update the activity feed to reflect changes made
+            You are the Flywheel autonomous coding agent.
+            Read the issue carefully and implement the requested changes.
+            Follow the guidelines in CLAUDE.md.
+            Create a PR with your changes.
+            Keep index.html self-contained (single file, no build step).
