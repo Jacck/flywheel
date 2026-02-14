@@ -31,9 +31,41 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           label_trigger: "agent-task"
+          settings: |
+            {
+              "permissions": {
+                "allow": [
+                  "Bash(gh issue view:*)",
+                  "Bash(gh issue list:*)",
+                  "Bash(gh pr create:*)",
+                  "Bash(gh pr view:*)",
+                  "Bash(git add:*)",
+                  "Bash(git checkout:*)",
+                  "Bash(git commit:*)",
+                  "Bash(git push:*)",
+                  "Bash(git branch:*)",
+                  "Bash(git diff:*)",
+                  "Bash(git log:*)",
+                  "Bash(git status)",
+                  "Read",
+                  "Write",
+                  "Edit",
+                  "MultiEdit",
+                  "Glob",
+                  "Grep",
+                  "TodoRead",
+                  "TodoWrite"
+                ]
+              }
+            }
           prompt: |
-            You are the Flywheel autonomous coding agent.
-            Read the issue carefully and implement the requested changes.
-            Follow the guidelines in CLAUDE.md.
-            Create a PR with your changes.
-            Keep index.html self-contained (single file, no build step).
+            You are the Flywheel autonomous coding agent. Your job is to:
+            1. Read the triggering issue carefully — the issue title and body describe your task
+            2. Implement the requested changes to the codebase
+            3. Follow the guidelines in CLAUDE.md
+            4. Commit your changes to a new branch and create a PR referencing the issue
+            5. Keep index.html self-contained (single file, no build step)
+
+            IMPORTANT: The issue that triggered this run contains your task.
+            Use `gh issue view <number> --json title,body` to read it if needed.
+            Do NOT just review the codebase — actually implement the requested changes.
