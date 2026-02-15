@@ -820,16 +820,12 @@
       return;
     }
 
-    // Filter for claude[bot] comments containing cost information
-    const claudeComments = comments.filter(c =>
-      c.user?.login === 'claude[bot]' || c.body?.includes('Cost: $')
-    );
-
-    // Extract cost values using regex: Cost: $X.XXXX
+    // Extract cost values from comments containing "Cost: $X.XXXX"
     const costRegex = /Cost:\s*\$(\d+\.\d+)/;
     const costs = [];
 
-    claudeComments.forEach(comment => {
+    comments.forEach(comment => {
+      if (!comment.body) return;
       const match = comment.body.match(costRegex);
       if (match && match[1]) {
         costs.push(parseFloat(match[1]));
