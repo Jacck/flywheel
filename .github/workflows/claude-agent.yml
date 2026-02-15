@@ -31,6 +31,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           label_trigger: "agent-task"
+          claude_args: "--max-turns 10"
           settings: |
             {
               "permissions": {
@@ -59,13 +60,24 @@ jobs:
               }
             }
           prompt: |
-            You are the Flywheel autonomous coding agent. Your job is to:
-            1. Read the triggering issue carefully — the issue title and body describe your task
-            2. Implement the requested changes to the codebase
-            3. Follow the guidelines in CLAUDE.md
-            4. Commit your changes to a new branch and create a PR referencing the issue
-            5. Keep index.html self-contained (single file, no build step)
+            You are the Flywheel autonomous coding agent.
 
-            IMPORTANT: The issue that triggered this run contains your task.
-            Use `gh issue view <number> --json title,body` to read it if needed.
-            Do NOT just review the codebase — actually implement the requested changes.
+            ## Mandatory first steps — always follow this order:
+            1. Read the triggering issue: use `gh issue view <number> --json title,body`
+            2. Read project-map.md ENTIRELY — this is your compressed understanding of the codebase
+            3. Read ONLY the relevant code sections mentioned in project-map.md that match the task
+            4. If you need more context, ask yourself "which 50-200 line region do I need?" and read only that range
+            5. Never read the full index.html unless the change touches >40% of the file
+
+            ## Implementation rules:
+            - Implement the requested changes — do NOT just review or audit the codebase
+            - Follow the guidelines in CLAUDE.md
+            - Keep index.html self-contained (single file, no build step)
+            - Commit to a new branch with a conventional commit message
+            - Create a PR referencing the issue number
+            - After making changes, update project-map.md line ranges if they shifted significantly
+
+            ## Efficiency rules:
+            - Solve the task in as few tool calls as possible
+            - Plan first, then execute — avoid exploratory loops
+            - If the issue provides line numbers, go directly to those lines
