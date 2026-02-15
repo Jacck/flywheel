@@ -378,6 +378,23 @@
   .input-area input:focus { border-color: var(--accent-cyan); }
   .input-area input::placeholder { color: var(--text-muted); }
 
+  .input-area textarea {
+    flex: 1;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    resize: vertical;
+  }
+
+  .input-area textarea:focus { border-color: var(--accent-cyan); }
+  .input-area textarea::placeholder { color: var(--text-muted); }
+
   .btn {
     padding: 12px 24px;
     border-radius: var(--radius);
@@ -551,7 +568,7 @@
       <div class="card">
         <div class="card-title"><span class="icon">⊳</span> Dispatch Task</div>
         <div class="input-area" style="flex-direction: column;">
-          <input type="text" id="taskInput" placeholder="Describe a task for the agent...">
+          <textarea id="taskInput" rows="5" placeholder="Describe a task for the agent..."></textarea>
           <button class="btn" onclick="dispatchTask()" id="dispatchBtn" style="width: 100%;">Create Issue → Agent</button>
         </div>
         <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; font-family: var(--mono);">

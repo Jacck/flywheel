@@ -7,7 +7,7 @@ Quick reference for navigating the Flywheel dashboard codebase. All application 
 ## HTML Head (lines 1-8)
 DOCTYPE, meta tags, fonts (JetBrains Mono + DM Sans from Google Fonts CDN)
 
-## CSS (lines 9-423)
+## CSS (lines 9-428)
 
 ### Variables and root (lines 10-31)
 Custom properties: color palette (void/surface/elevated/hover backgrounds, cyan/green/amber/red/purple accents), fonts (mono/sans), spacing, border-radius
@@ -45,83 +45,83 @@ Code-style log output with color classes (prompt/info/warn/err/dim), fixed heigh
 ### Setup banner (lines 317-358)
 Onboarding UI with instructions, code snippets, centered layout
 
-### Input area and buttons (lines 359-401)
-Form inputs with focus states, primary action buttons with hover effects
+### Input area and buttons (lines 359-406)
+Form inputs and textareas with focus states, primary action buttons with hover effects
 
-### Footer (lines 402-412)
+### Footer (lines 407-417)
 Centered version info and credits
 
-### Responsive (lines 413-417)
+### Responsive (lines 418-422)
 Media query for mobile: collapse grids to single column, stack header
 
-### Scrollbar (lines 419-423)
+### Scrollbar (lines 424-428)
 Custom webkit scrollbar styling
 
-## HTML Body (lines 425-585)
+## HTML Body (lines 430-590)
 
-### Header section (lines 429-442)
+### Header section (lines 434-447)
 Logo, branding, status indicator
 
-### Setup banner (lines 444-469)
+### Setup banner (lines 449-474)
 Initial connection form — repo input, PAT input, connect button, instructions
 
-### Stats grid (lines 471-488)
+### Stats grid (lines 476-493)
 Three stat cards: Total Tasks, Commits, PRs Merged (hidden until connected)
 
-### Main grid (lines 490-562)
+### Main grid (lines 495-567)
 Two-column layout:
-- **Left**: Activity feed card (lines 493-505)
-- **Right column** (lines 507-561):
-  - Agent Config card (lines 511-540) — model, mode, schedule, repo, pages, auth, disconnect button
-  - Workflow Runs card (lines 542-548)
-  - Dispatch Task card (lines 550-560) — input field + create issue button
+- **Left**: Activity feed card (lines 498-510)
+- **Right column** (lines 512-566):
+  - Agent Config card (lines 516-545) — model, mode, schedule, repo, pages, auth, disconnect button
+  - Workflow Runs card (lines 547-553)
+  - Dispatch Task card (lines 555-565) — textarea (5 rows) + create issue button
 
-### Task queue card (lines 564-570)
+### Task queue card (lines 569-575)
 Displays open/closed agent-task issues (hidden until connected)
 
-### Terminal log card (lines 572-580)
+### Terminal log card (lines 577-585)
 Scrollable log output for dashboard events
 
-### Footer (lines 582-584)
+### Footer (lines 587-589)
 Version info
 
-## JavaScript (lines 587-962)
+## JavaScript (lines 592-967)
 
-### State and config (lines 588-596)
+### State and config (lines 593-601)
 Global state object (repo, pat, connected), localStorage persistence, constants (GITHUB_API), DOM helper
 
-### Terminal logging (lines 598-607)
+### Terminal logging (lines 603-612)
 Log function with timestamp formatting
 
-### Connection management (lines 609-641)
+### Connection management (lines 614-646)
 `connectRepo()` — validate input, save to localStorage, initialize
 `disconnect()` — clear state, reset UI, hide main panels
 
-### GitHub API helpers (lines 643-693)
+### GitHub API helpers (lines 648-698)
 `ghFetch()` — GET requests with auth, rate limit handling, error logging
 `ghPost()` — POST requests for creating issues
 
-### Initialization (lines 695-749)
+### Initialization (lines 700-754)
 `init()` — connect to repo, test connection, show UI, load all data, display auth status
 
-### Data loading functions (lines 751-894)
-`loadIssues()` — fetch agent-task issues, populate task queue, update stats (lines 751-784)
-`loadCommits()` — fetch commits, filter agent commits, update stat (lines 786-799)
-`loadPRs()` — fetch PRs, count merged, update stat (lines 801-808)
-`loadWorkflowRuns()` — fetch recent Actions runs, display status (lines 810-842)
-`loadActivity()` — combine commits/issues/PRs, sort by time, populate feed (lines 844-894)
+### Data loading functions (lines 756-899)
+`loadIssues()` — fetch agent-task issues, populate task queue, update stats (lines 756-789)
+`loadCommits()` — fetch commits, filter agent commits, update stat (lines 791-804)
+`loadPRs()` — fetch PRs, count merged, update stat (lines 806-813)
+`loadWorkflowRuns()` — fetch recent Actions runs, display status (lines 815-847)
+`loadActivity()` — combine commits/issues/PRs, sort by time, populate feed (lines 849-899)
 
-### Task dispatch (lines 896-931)
+### Task dispatch (lines 901-936)
 `dispatchTask()` — create issue via API (if PAT) or open GitHub issue form
 
-### Utilities (lines 933-947)
+### Utilities (lines 938-952)
 `escHtml()` — XSS protection, sanitize text
 `timeAgo()` — relative timestamp formatting
 
-### Auto-refresh (lines 949-955)
+### Auto-refresh (lines 954-960)
 60-second polling interval for data updates
 
-### Boot (lines 957-961)
+### Boot (lines 962-966)
 Auto-connect if repo saved in localStorage
 
 ---
