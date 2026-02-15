@@ -31,7 +31,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           label_trigger: "agent-task"
-          claude_args: "--max-turns 10"
+          claude_args: "--max-turns 20"
           settings: |
             {
               "permissions": {
@@ -47,6 +47,8 @@ jobs:
                   "Bash(git branch:*)",
                   "Bash(git diff:*)",
                   "Bash(git log:*)",
+                  "Bash(git fetch:*)",
+                  "Bash(git pull:*)",
                   "Bash(git status)",
                   "Read",
                   "Write",
