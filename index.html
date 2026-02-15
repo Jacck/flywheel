@@ -132,7 +132,7 @@
   /* ── Grid ── */
   .grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
     margin-bottom: 24px;
   }
@@ -485,6 +485,11 @@
       <div class="stat-value purple" id="statPRs">—</div>
       <div class="stat-label">autonomous merges</div>
     </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">◈</span> Total Spend</div>
+      <div class="stat-value amber" id="statTotalCost">—</div>
+      <div class="stat-label">agent costs</div>
+    </div>
   </div>
 
   <!-- Main content -->
@@ -741,7 +746,7 @@
     }
 
     // Load data
-    await Promise.all([loadIssues(), loadCommits(), loadPRs(), loadActivity(), loadWorkflowRuns()]);
+    await Promise.all([loadIssues(), loadCommits(), loadPRs(), loadCosts(), loadActivity(), loadWorkflowRuns()]);
 
     // Check rate limit
     const rateLimit = await ghFetch('');  // rate limit info is in response headers, but let's check
@@ -805,6 +810,40 @@
     const merged = prs.filter(p => p.merged_at);
     $('statPRs').textContent = merged.length;
     log(`Found ${prs.length} PRs (${merged.length} merged)`, 'dim');
+  }
+
+  // ── Load agent costs from claude[bot] comments ──
+  async function loadCosts() {
+    const comments = await ghFetch('/issues/comments?per_page=100');
+    if (!comments || !Array.isArray(comments)) {
+      $('statTotalCost').textContent = '$0.00';
+      return;
+    }
+
+    // Filter comments by claude[bot] that contain cost information
+    const claudeComments = comments.filter(c =>
+      c.user?.login === 'claude[bot]' ||
+      c.body?.includes('Cost: $')
+    );
+
+    // Extract costs using regex: Cost: $X.XXXX
+    const costRegex = /Cost:\s*\$(\d+\.\d+)/i;
+    const costs = [];
+
+    claudeComments.forEach(comment => {
+      const match = comment.body?.match(costRegex);
+      if (match && match[1]) {
+        costs.push(parseFloat(match[1]));
+      }
+    });
+
+    // Calculate total spend
+    const totalSpend = costs.reduce((sum, cost) => sum + cost, 0);
+
+    // Update stats card
+    $('statTotalCost').textContent = `$${totalSpend.toFixed(2)}`;
+
+    log(`Parsed ${costs.length} agent cost reports (total: $${totalSpend.toFixed(2)})`, 'dim');
   }
 
   // ── Load workflow runs (requires PAT for private repos) ──
@@ -950,7 +989,7 @@
   setInterval(() => {
     if (state.connected) {
       log('Refreshing data...', 'dim');
-      Promise.all([loadIssues(), loadCommits(), loadPRs(), loadActivity(), loadWorkflowRuns()]);
+      Promise.all([loadIssues(), loadCommits(), loadPRs(), loadCosts(), loadActivity(), loadWorkflowRuns()]);
     }
   }, 60000);
 
