@@ -488,7 +488,7 @@
     <div class="card">
       <div class="card-title"><span class="icon">◎</span> Total Spend</div>
       <div class="stat-value amber" id="statCost">—</div>
-      <div class="stat-label">actions usage (est.)</div>
+      <div class="stat-label">agent execution</div>
     </div>
   </div>
 
@@ -812,35 +812,39 @@
     log(`Found ${prs.length} PRs (${merged.length} merged)`, 'dim');
   }
 
-  // ── Load cost tracking from workflow run durations ──
+  // ── Load cost tracking from Claude Code Report comments ──
   async function loadCosts() {
-    const data = await ghFetch('/actions/runs?per_page=100');
-    if (!data || !data.workflow_runs || data.workflow_runs.length === 0) {
+    const comments = await ghFetch('/issues/comments?per_page=100');
+    if (!comments || !Array.isArray(comments)) {
       $('statCost').textContent = '$0.00';
       return;
     }
 
-    // Calculate cost from completed run durations
-    // GitHub Actions Linux runner rate: $0.008/min
-    const RATE_PER_MIN = 0.008;
-    let totalMinutes = 0;
-    let runCount = 0;
+    // Filter for claude[bot] comments containing cost information
+    const claudeComments = comments.filter(c =>
+      c.user?.login === 'claude[bot]' || c.body?.includes('Cost: $')
+    );
 
-    data.workflow_runs.forEach(run => {
-      if (run.status !== 'completed' || !run.run_started_at || !run.updated_at) return;
-      const started = new Date(run.run_started_at);
-      const ended = new Date(run.updated_at);
-      const minutes = (ended - started) / 60000;
-      if (minutes > 0 && minutes < 360) { // sanity check: ignore runs > 6h
-        totalMinutes += minutes;
-        runCount++;
+    // Extract cost values using regex: Cost: $X.XXXX
+    const costRegex = /Cost:\s*\$(\d+\.\d+)/;
+    const costs = [];
+
+    claudeComments.forEach(comment => {
+      const match = comment.body.match(costRegex);
+      if (match && match[1]) {
+        costs.push(parseFloat(match[1]));
       }
     });
 
-    const totalSpend = totalMinutes * RATE_PER_MIN;
+    // Calculate aggregates
+    const totalSpend = costs.reduce((sum, cost) => sum + cost, 0);
+    const avgCost = costs.length > 0 ? totalSpend / costs.length : 0;
+    const lastCost = costs.length > 0 ? costs[costs.length - 1] : 0;
+
+    // Update stat display with total spend
     $('statCost').textContent = `$${totalSpend.toFixed(2)}`;
 
-    log(`Cost estimate from ${runCount} runs (${totalMinutes.toFixed(0)} min × $${RATE_PER_MIN}/min)`, 'dim');
+    log(`Loaded ${costs.length} cost entries (avg: $${avgCost.toFixed(2)}, last: $${lastCost.toFixed(2)})`, 'dim');
   }
 
   // ── Load workflow runs (requires PAT for private repos) ──
