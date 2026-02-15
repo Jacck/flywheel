@@ -108,7 +108,7 @@ Log function with timestamp formatting
 `loadIssues()` — fetch agent-task issues, populate task queue, update stats (lines 755-788)
 `loadCommits()` — fetch commits, filter agent commits, update stat (lines 790-803)
 `loadPRs()` — fetch PRs, count merged, update stat (lines 805-812)
-`loadCosts()` — fetch issue comments, parse Claude Code Report costs, aggregate spend (lines 814-846)
+`loadCosts()` — fetch workflow runs, estimate cost from run durations (lines 815-844)
 `loadWorkflowRuns()` — fetch recent Actions runs, display status (lines 848-880)
 `loadActivity()` — combine commits/issues/PRs, sort by time, populate feed (lines 882-932)
 
