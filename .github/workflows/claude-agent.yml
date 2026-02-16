@@ -35,7 +35,7 @@ jobs:
           label_trigger: "agent-task"
           claude_args: "--max-turns 30"
           additional_permissions: |
-          actions: read
+            actions: read
           settings: |
             {
               "permissions": {
@@ -72,22 +72,34 @@ jobs:
             ## Mandatory first steps — always follow this order:
             1. Read the triggering issue: use `gh issue view <number> --json title,body`
             2. Read project-map.md ENTIRELY — this is your compressed understanding of the codebase
-            3. Read ONLY the relevant code sections mentioned in project-map.md that match the task
-            4. If you need more context, ask yourself "which 50-200 line region do I need?" and read only that range
-            5. Never read the full index.html unless the change touches >40% of the file
+            3. Read .claude/skills/ for any procedures relevant to your task
+            4. Read ONLY the relevant code sections mentioned in project-map.md that match the task
+            5. If you need more context, ask yourself "which 50-200 line region do I need?" and read only that range
+            6. Never read the full index.html unless the change touches >40% of the file
 
             ## Implementation rules:
             - Implement the requested changes — do NOT just review or audit the codebase
             - Follow the guidelines in CLAUDE.md
+            - Follow procedures in .claude/skills/ when they match your task
             - Keep index.html self-contained (single file, no build step)
             - Commit to a new branch with a conventional commit message
             - Create a PR referencing the issue number
             - ALWAYS update project-map.md line ranges after editing index.html
 
+            ## Learning rules:
+            - After completing a task, append a 1-2 line lesson to .claude/skills/lessons.md
+            - Format: YYYY-MM-DD #issue: what you learned
+            - Read .claude/skills/lessons.md before starting — avoid repeating past mistakes
+
             ## Efficiency rules:
             - Solve the task in as few tool calls as possible
             - Plan first, then execute — avoid exploratory loops
             - If the issue provides line numbers, go directly to those lines
+
+            ## Self-diagnosis:
+            - You have access to workflow run logs via mcp__github_workflow_runs tools
+            - If a previous run failed, you can inspect logs to understand why
+            - Use this to avoid repeating the same failure
 
       - name: Post cost report
         if: always() && steps.claude.outputs.execution_file
