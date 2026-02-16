@@ -97,12 +97,23 @@ jobs:
           COST=$(python3 -c "
           import json, sys
           data = json.load(open('$EXEC_FILE'))
-          for item in reversed(data):
-            if item.get('type') == 'final_result':
-              d = item.get('data', {})
+          # Handle both array and object formats
+          items = data if isinstance(data, list) else [data]
+          for item in reversed(items):
+            t = item.get('type', '')
+            if t in ('result', 'final_result'):
+              d = item.get('data', item)
               cost = d.get('total_cost_usd', d.get('cost_usd', 0))
               dur = d.get('duration_ms', 0) / 1000
-              print(f'Cost: \${cost:.4f} | Duration: {dur:.1f}s')
+              turns = d.get('num_turns', 0)
+              print(f'Cost: \${cost:.4f} | Duration: {dur:.1f}s | Turns: {turns}')
+              sys.exit(0)
+            # Also check top-level fields (non-nested format)
+            if 'total_cost_usd' in item:
+              cost = item['total_cost_usd']
+              dur = item.get('duration_ms', 0) / 1000
+              turns = item.get('num_turns', 0)
+              print(f'Cost: \${cost:.4f} | Duration: {dur:.1f}s | Turns: {turns}')
               sys.exit(0)
           " 2>/dev/null || echo "")
 
