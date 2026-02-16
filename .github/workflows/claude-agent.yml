@@ -33,6 +33,8 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           label_trigger: "agent-task"
           claude_args: "--max-turns 30"
+          additional_permissions: |
+          actions: read
           settings: |
             {
               "permissions": {
