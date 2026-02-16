@@ -177,7 +177,6 @@
   .stat-value.cyan { color: var(--accent-cyan); }
   .stat-value.green { color: var(--accent-green); }
   .stat-value.amber { color: var(--accent-amber); }
-  .stat-value.red { color: var(--accent-red); }
   .stat-value.purple { color: var(--accent-purple); }
 
   .stat-label {
@@ -487,9 +486,9 @@
       <div class="stat-label">autonomous merges</div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="icon">◎</span> Total Spend</div>
-      <div class="stat-value red" id="statCost">—</div>
-      <div class="stat-label">tokens</div>
+      <div class="card-title"><span class="icon">◆</span> Agent Spend</div>
+      <div class="stat-value amber" id="statSpend">—</div>
+      <div class="stat-label" id="statSpendLabel">total cost</div>
     </div>
   </div>
 
@@ -518,7 +517,7 @@
         <div class="card-title"><span class="icon">⊞</span> Agent Config</div>
         <div class="config-row">
           <span class="config-key">model</span>
-          <span class="config-val">claude-haiku-4-5</span>
+          <span class="config-val">claude-sonnet-4</span>
         </div>
         <div class="config-row">
           <span class="config-key">mode</span>
@@ -526,7 +525,7 @@
         </div>
         <div class="config-row">
           <span class="config-key">schedule</span>
-          <span class="config-val">On demand</span>
+          <span class="config-val">daily 06:00 UTC</span>
         </div>
         <div class="config-row">
           <span class="config-key">repo</span>
@@ -555,7 +554,7 @@
 
       <!-- Quick dispatch -->
       <div class="card">
-        <div class="card-title"><span class="icon">⊳</span> ISSUE</div>
+        <div class="card-title"><span class="icon">⊳</span> Dispatch Task</div>
         <div class="input-area" style="flex-direction: column;">
           <input type="text" id="taskInput" placeholder="Describe a task for the agent...">
           <button class="btn" onclick="dispatchTask()" id="dispatchBtn" style="width: 100%;">Create Issue → Agent</button>
@@ -572,14 +571,6 @@
     <div class="card-title"><span class="icon">☰</span> Task Queue</div>
     <div id="taskQueue">
       <div style="color: var(--text-muted); font-size: 13px; padding: 8px 0;">Loading issues...</div>
-    </div>
-  </div>
-
-  <!-- Cost Breakdown -->
-  <div class="card" id="costBreakdownCard" style="display: none; margin-top: 20px;">
-    <div class="card-title"><span class="icon">$</span> Spend Breakdown</div>
-    <div id="costBreakdown">
-      <div style="color: var(--text-muted); font-size: 13px; padding: 8px 0;">Loading cost data...</div>
     </div>
   </div>
 
@@ -649,7 +640,6 @@
     $('statsGrid').style.display = 'none';
     $('mainGrid').style.display = 'none';
     $('taskQueueCard').style.display = 'none';
-    $('costBreakdownCard').style.display = 'none';
     $('statusDot').className = 'status-dot idle';
     $('statusText').textContent = 'Disconnected';
     if ($('patInput')) $('patInput').value = '';
@@ -673,8 +663,19 @@
       if (res.status === 403) {
         const remaining = res.headers.get('x-ratelimit-remaining');
         if (remaining === '0') {
-          const reset = new Date(res.headers.get('x-ratelimit-reset') * 1000);
-          log(`Rate limited. Resets at ${reset.toLocaleTimeString()}`, 'warn');
+          const resetTime = parseInt(res.headers.get('x-ratelimit-reset')) * 1000;
+          const reset = new Date(resetTime);
+          const waitMin = Math.ceil((resetTime - Date.now()) / 60000);
+          if (!rateLimited) {
+            log(`Rate limited. Resets at ${reset.toLocaleTimeString()} (${waitMin}min). Pausing refreshes.`, 'warn');
+            rateLimited = true;
+            // Auto-recover when rate limit resets
+            setTimeout(() => {
+              rateLimited = false;
+              log('Rate limit reset. Resuming refreshes.', 'info');
+              Promise.all([loadIssues(), loadCommits(), loadPRs(), loadActivity(), loadWorkflowRuns(), loadCostData()]);
+            }, resetTime - Date.now() + 2000);
+          }
         }
         return null;
       }
@@ -744,7 +745,6 @@
     $('statsGrid').style.display = 'grid';
     $('mainGrid').style.display = 'grid';
     $('taskQueueCard').style.display = 'block';
-    $('costBreakdownCard').style.display = 'block';
 
     $('statusDot').className = 'status-dot';
     $('statusText').textContent = repoData.private ? 'Connected (private)' : 'Connected';
@@ -757,10 +757,11 @@
     }
 
     // Load data
-    await Promise.all([loadIssues(), loadCommits(), loadPRs(), loadCosts(), loadActivity(), loadWorkflowRuns()]);
+    await Promise.all([loadIssues(), loadCommits(), loadPRs(), loadActivity(), loadWorkflowRuns(), loadCostData()]);
 
-    // Check rate limit
-    const rateLimit = await ghFetch('');  // rate limit info is in response headers, but let's check
+    // Start auto-refresh loop
+    startRefreshLoop();
+
     log('Dashboard ready. Agent is listening for tasks.', 'prompt');
   }
 
@@ -823,129 +824,6 @@
     log(`Found ${prs.length} PRs (${merged.length} merged)`, 'dim');
   }
 
-  // ── Load cost tracking from Claude Code Report comments ──
-  // Paginate through all issue comments to collect every cost entry
-  async function loadCosts() {
-    const costRegex = /Cost:\s*\$(\d+(?:\.\d+)?)/gi;
-    const costs = [];
-
-    // Paginate through issue comments
-    let page = 1;
-    const perPage = 100;
-    while (true) {
-      const comments = await ghFetch(`/issues/comments?per_page=${perPage}&page=${page}`);
-      if (!comments || !Array.isArray(comments) || comments.length === 0) break;
-
-      comments.forEach(comment => {
-        if (!comment.body) return;
-        let match;
-        costRegex.lastIndex = 0;
-        while ((match = costRegex.exec(comment.body)) !== null) {
-          costs.push({
-            value: parseFloat(match[1]),
-            date: comment.created_at,
-            issueUrl: comment.issue_url || '',
-          });
-        }
-      });
-
-      if (comments.length < perPage) break;
-      page++;
-      // Safety cap to avoid runaway pagination
-      if (page > 10) { log('Cost scan capped at 1000 comments', 'warn'); break; }
-    }
-
-    // Also check PR review comments for cost entries
-    page = 1;
-    while (true) {
-      const prComments = await ghFetch(`/pulls/comments?per_page=${perPage}&page=${page}`);
-      if (!prComments || !Array.isArray(prComments) || prComments.length === 0) break;
-
-      prComments.forEach(comment => {
-        if (!comment.body) return;
-        let match;
-        costRegex.lastIndex = 0;
-        while ((match = costRegex.exec(comment.body)) !== null) {
-          costs.push({
-            value: parseFloat(match[1]),
-            date: comment.created_at,
-            issueUrl: comment.pull_request_url || '',
-          });
-        }
-      });
-
-      if (prComments.length < perPage) break;
-      page++;
-      if (page > 5) break;
-    }
-
-    // Sort by date ascending
-    costs.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    // Calculate aggregates
-    const totalSpend = costs.reduce((sum, c) => sum + c.value, 0);
-    const avgCost = costs.length > 0 ? totalSpend / costs.length : 0;
-    const lastCost = costs.length > 0 ? costs[costs.length - 1].value : 0;
-
-    // Update stat display with total spend
-    $('statCost').textContent = `$${totalSpend.toFixed(2)}`;
-
-    // Update cost breakdown panel
-    renderCostBreakdown(costs, totalSpend, avgCost, lastCost);
-
-    log(`Loaded ${costs.length} cost entries totalling $${totalSpend.toFixed(2)} (avg: $${avgCost.toFixed(2)}, last: $${lastCost.toFixed(2)})`, 'dim');
-  }
-
-  // ── Render cost breakdown details ──
-  function renderCostBreakdown(costs, total, avg, last) {
-    const container = $('costBreakdown');
-    if (!container) return;
-
-    if (costs.length === 0) {
-      container.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; padding: 8px 0;">No cost data found. Cost entries are parsed from comments containing "Cost: $X.XX".</div>';
-      return;
-    }
-
-    // Recent 7 days spend
-    const weekAgo = new Date(Date.now() - 7 * 86400000);
-    const recentCosts = costs.filter(c => new Date(c.date) >= weekAgo);
-    const recentTotal = recentCosts.reduce((s, c) => s + c.value, 0);
-
-    // Build mini bar chart for last 10 entries
-    const recent = costs.slice(-10);
-    const maxVal = Math.max(...recent.map(c => c.value), 0.01);
-    const bars = recent.map(c => {
-      const pct = Math.max((c.value / maxVal) * 100, 4);
-      const dateStr = new Date(c.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-        <span style="font-family:var(--mono);font-size:11px;color:var(--text-muted);min-width:50px;">${dateStr}</span>
-        <div style="flex:1;background:var(--bg-void);border-radius:3px;height:14px;overflow:hidden;">
-          <div style="width:${pct}%;height:100%;background:var(--accent-amber);border-radius:3px;"></div>
-        </div>
-        <span style="font-family:var(--mono);font-size:11px;color:var(--accent-amber);min-width:55px;text-align:right;">$${c.value.toFixed(2)}</span>
-      </div>`;
-    }).join('');
-
-    container.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
-        <div style="background:var(--bg-elevated);border-radius:var(--radius);padding:12px;text-align:center;">
-          <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--accent-amber);">$${total.toFixed(2)}</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Total</div>
-        </div>
-        <div style="background:var(--bg-elevated);border-radius:var(--radius);padding:12px;text-align:center;">
-          <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--accent-cyan);">$${avg.toFixed(2)}</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Avg / Task</div>
-        </div>
-        <div style="background:var(--bg-elevated);border-radius:var(--radius);padding:12px;text-align:center;">
-          <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--accent-green);">$${recentTotal.toFixed(2)}</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Last 7 days</div>
-        </div>
-      </div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Recent cost entries (${costs.length} total)</div>
-      ${bars}
-    `;
-  }
-
   // ── Load workflow runs (requires PAT for private repos) ──
   async function loadWorkflowRuns() {
     const runs = await ghFetch('/actions/runs?per_page=5');
@@ -981,6 +859,54 @@
   }
 
   // ── Load activity feed ──
+  // ── Load cost data from claude[bot] comments ──
+  async function loadCostData() {
+    try {
+      const issues = await ghFetch('/issues?state=all&labels=agent-task&per_page=50');
+      if (!issues || !Array.isArray(issues)) return;
+
+      let totalCost = 0;
+      let runCount = 0;
+      let lastCost = 0;
+
+      const commentPromises = issues.map(issue =>
+        ghFetch(`/issues/${issue.number}/comments?per_page=30`)
+      );
+      const allComments = await Promise.all(commentPromises);
+
+      for (const comments of allComments) {
+        if (!comments || !Array.isArray(comments)) continue;
+        for (const comment of comments) {
+          if (comment.user && comment.user.login === 'claude[bot]') {
+            const costMatch = comment.body.match(/Cost:\s*\$?([\d.]+)/i);
+            if (costMatch) {
+              const cost = parseFloat(costMatch[1]);
+              if (!isNaN(cost) && cost > 0) {
+                totalCost += cost;
+                runCount++;
+                lastCost = cost;
+              }
+            }
+          }
+        }
+      }
+
+      if (runCount > 0) {
+        const avg = totalCost / runCount;
+        $('statSpend').textContent = '$' + totalCost.toFixed(2);
+        $('statSpendLabel').textContent =
+          `${runCount} runs · avg $${avg.toFixed(2)} · last $${lastCost.toFixed(2)}`;
+      } else {
+        $('statSpend').textContent = '$0.00';
+        $('statSpendLabel').textContent = 'no agent runs found';
+      }
+    } catch (e) {
+      console.error('Cost tracking error:', e);
+      $('statSpend').textContent = '—';
+      $('statSpendLabel').textContent = 'error loading costs';
+    }
+  }
+
   async function loadActivity() {
     const [commits, issues, prs] = await Promise.all([
       ghFetch('/commits?per_page=5'),
@@ -1085,13 +1011,27 @@
     return `${Math.floor(s / 86400)}d ago`;
   }
 
-  // ── Auto-refresh every 60s ──
-  setInterval(() => {
-    if (state.connected) {
-      log('Refreshing data...', 'dim');
-      Promise.all([loadIssues(), loadCommits(), loadPRs(), loadCosts(), loadActivity(), loadWorkflowRuns()]);
-    }
-  }, 60000);
+  // ── Auto-refresh with rate limit awareness ──
+  let rateLimited = false;
+  let refreshInterval = null;
+
+  function startRefreshLoop() {
+    if (refreshInterval) clearInterval(refreshInterval);
+    // Without PAT: 60 req/hr limit → refresh every 5 min (7 calls × 12 = 84, but some will be cached)
+    // With PAT: 5000 req/hr → refresh every 60s is fine
+    const interval = state.pat ? 60000 : 300000;
+    const label = state.pat ? '60s' : '5min';
+    log(`Auto-refresh set to ${label} (${state.pat ? 'authenticated' : 'unauthenticated'} rate limit)`, 'dim');
+
+    refreshInterval = setInterval(() => {
+      if (state.connected && !rateLimited) {
+        log('Refreshing data...', 'dim');
+        Promise.all([loadIssues(), loadCommits(), loadPRs(), loadActivity(), loadWorkflowRuns(), loadCostData()]);
+      } else if (rateLimited) {
+        log('Skipping refresh — rate limited. Waiting for reset.', 'warn');
+      }
+    }, interval);
+  }
 
   // ── Boot ──
   if (state.repo) {
