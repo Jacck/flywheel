@@ -7,8 +7,8 @@ Quick reference for navigating the Flywheel dashboard codebase. All application 
 ## HTML Head (lines 1-8)
 DOCTYPE, meta tags, fonts (JetBrains Mono + DM Sans from Google Fonts CDN)
 
-## CSS (lines 9-423)
-Note: CSS ends at line 423, body starts at line 425
+## CSS (lines 9-424)
+Note: CSS ends at line 424, body starts at line 426
 
 ### Variables and root (lines 10-31)
 Custom properties: color palette (void/surface/elevated/hover backgrounds, cyan/green/amber/red/purple accents), fonts (mono/sans), spacing, border-radius
@@ -28,102 +28,102 @@ Header bar with logo (spinning gradient), title text, status badge with pulsing 
 ### Cards (lines 143-167)
 Base card styles, titles with icon prefixes, hover effects
 
-### Stat cards (lines 168-186)
-Large numeric values with color variants (cyan/green/amber/purple), stat labels
+### Stat cards (lines 168-187)
+Large numeric values with color variants (cyan/green/amber/red/purple), stat labels
 
-### Activity feed (lines 187-229)
+### Activity feed (lines 188-230)
 Feed list items with colored dots (commit/pr/issue/error), timestamps, text formatting
 
-### Task queue (lines 230-272)
+### Task queue (lines 231-273)
 Task cards with ID badges, titles, status pills (queued/running/done)
 
-### Config panel (lines 273-296)
+### Config panel (lines 274-297)
 Key-value rows for agent configuration display
 
-### Terminal (lines 297-316)
+### Terminal (lines 298-317)
 Code-style log output with color classes (prompt/info/warn/err/dim), fixed height with scroll
 
-### Setup banner (lines 317-358)
+### Setup banner (lines 318-359)
 Onboarding UI with instructions, code snippets, centered layout
 
-### Input area and buttons (lines 359-401)
+### Input area and buttons (lines 360-402)
 Form inputs with focus states, primary action buttons with hover effects
 
-### Footer (lines 402-412)
+### Footer (lines 403-413)
 Centered version info and credits
 
-### Responsive (lines 413-417)
+### Responsive (lines 414-418)
 Media query for mobile: collapse grids to single column, stack header
 
-### Scrollbar (lines 419-423)
+### Scrollbar (lines 420-424)
 Custom webkit scrollbar styling
 
-## HTML Body (lines 425-590)
+## HTML Body (lines 426-591)
 
-### Header section (lines 429-442)
+### Header section (lines 430-443)
 Logo, branding, status indicator
 
-### Setup banner (lines 444-469)
+### Setup banner (lines 445-470)
 Initial connection form — repo input, PAT input, connect button, instructions
 
-### Stats grid (lines 471-493)
-Four stat cards: Total Tasks, Commits, PRs Merged, Agent Spend (hidden until connected)
+### Stats grid (lines 472-494)
+Four stat cards: Total Tasks, Commits, PRs Merged, Agent Spend (red) (hidden until connected)
 
-### Main grid (lines 495-567)
+### Main grid (lines 496-568)
 Two-column layout:
-- **Left**: Activity feed card (lines 498-510)
-- **Right column** (lines 512-566):
-  - Agent Config card (lines 516-545) — model, mode, schedule, repo, pages, auth, disconnect button
-  - Workflow Runs card (lines 547-553)
-  - Dispatch Task card (lines 555-565) — input field + create issue button
+- **Left**: Activity feed card (lines 499-511)
+- **Right column** (lines 513-567):
+  - Agent Config card (lines 517-546) — model, mode, schedule, repo, pages, auth, disconnect button
+  - Workflow Runs card (lines 548-554)
+  - Dispatch Task card (lines 556-566) — input field + create issue button
 
-### Task queue card (lines 569-575)
+### Task queue card (lines 570-576)
 Displays open/closed agent-task issues (hidden until connected)
 
-### Terminal log card (lines 577-585)
+### Terminal log card (lines 578-586)
 Scrollable log output for dashboard events
 
-### Footer (lines 587-589)
+### Footer (lines 588-590)
 Version info
 
-## JavaScript (lines 592-1041)
+## JavaScript (lines 593-1042)
 
-### State and config (lines 593-601)
+### State and config (lines 594-602)
 Global state object (repo, pat, connected), localStorage persistence, constants (GITHUB_API), DOM helper
 
-### Terminal logging (lines 603-612)
+### Terminal logging (lines 604-613)
 Log function with timestamp formatting
 
-### Connection management (lines 614-646)
-`connectRepo()` — validate input, save to localStorage, initialize (lines 614-628)
-`disconnect()` — clear state, reset UI, hide main panels (lines 630-646)
+### Connection management (lines 615-647)
+`connectRepo()` — validate input, save to localStorage, initialize (lines 615-629)
+`disconnect()` — clear state, reset UI, hide main panels (lines 631-647)
 
-### GitHub API helpers (lines 648-709)
-`ghFetch()` — GET requests with auth, rate limit handling, error logging (lines 648-688)
-`ghPost()` — POST requests for creating issues (lines 690-709)
+### GitHub API helpers (lines 649-710)
+`ghFetch()` — GET requests with auth, rate limit handling, error logging (lines 649-689)
+`ghPost()` — POST requests for creating issues (lines 691-710)
 
-### Initialization (lines 711-766)
+### Initialization (lines 712-767)
 `init()` — connect to repo, test connection, show UI, load all data, display auth status, start refresh loop
 
-### Data loading functions (lines 768-959)
-`loadIssues()` — fetch agent-task issues, populate task queue, update stats (lines 768-801)
-`loadCommits()` — fetch commits, filter agent commits, update stat (lines 803-816)
-`loadPRs()` — fetch PRs, count merged, update stat (lines 818-825)
-`loadWorkflowRuns()` — fetch recent Actions runs, display status (lines 827-859)
-`loadCostData()` — fetch issue comments, parse Claude Code Report costs, aggregate spend (lines 862-920)
-`loadActivity()` — combine commits/issues/PRs, sort by time, populate feed (lines 922-959)
+### Data loading functions (lines 769-960)
+`loadIssues()` — fetch agent-task issues, populate task queue, update stats (lines 769-802)
+`loadCommits()` — fetch commits, filter agent commits, update stat (lines 804-817)
+`loadPRs()` — fetch PRs, count merged, update stat (lines 819-826)
+`loadWorkflowRuns()` — fetch recent Actions runs, display status (lines 828-860)
+`loadCostData()` — fetch issue comments, parse Claude Code Report costs, aggregate spend (lines 863-921)
+`loadActivity()` — combine commits/issues/PRs, sort by time, populate feed (lines 923-960)
 
-### Task dispatch (lines 961-996)
+### Task dispatch (lines 962-997)
 `dispatchTask()` — create issue via API (if PAT) or open GitHub issue form
 
-### Utilities (lines 998-1012)
-`escHtml()` — XSS protection, sanitize text (lines 998-1003)
-`timeAgo()` — relative timestamp formatting (lines 1005-1012)
+### Utilities (lines 999-1013)
+`escHtml()` — XSS protection, sanitize text (lines 999-1004)
+`timeAgo()` — relative timestamp formatting (lines 1006-1013)
 
-### Auto-refresh (lines 1014-1034)
+### Auto-refresh (lines 1015-1035)
 Rate-limited polling: 60s with PAT, 5min without PAT. Handles rate limit awareness.
 
-### Boot (lines 1036-1040)
+### Boot (lines 1037-1041)
 Auto-connect if repo saved in localStorage
 
 ---
