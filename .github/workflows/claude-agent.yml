@@ -4,7 +4,7 @@ on:
   issue_comment:
     types: [created]
   issues:
-    types: [opened, labeled]
+    types: [labeled]
   pull_request_review_comment:
     types: [created]
 
@@ -28,6 +28,7 @@ jobs:
           fetch-depth: 1
 
       - uses: anthropics/claude-code-action@v1
+        id: claude
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           label_trigger: "agent-task"
@@ -83,3 +84,32 @@ jobs:
             - Solve the task in as few tool calls as possible
             - Plan first, then execute — avoid exploratory loops
             - If the issue provides line numbers, go directly to those lines
+
+      - name: Post cost report
+        if: always() && steps.claude.outputs.execution_file
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EXEC_FILE="${{ steps.claude.outputs.execution_file }}"
+          if [ ! -f "$EXEC_FILE" ]; then exit 0; fi
+
+          # Extract cost and duration from execution data
+          COST=$(python3 -c "
+          import json, sys
+          data = json.load(open('$EXEC_FILE'))
+          for item in reversed(data):
+            if item.get('type') == 'final_result':
+              d = item.get('data', {})
+              cost = d.get('total_cost_usd', d.get('cost_usd', 0))
+              dur = d.get('duration_ms', 0) / 1000
+              print(f'Cost: \${cost:.4f} | Duration: {dur:.1f}s')
+              sys.exit(0)
+          " 2>/dev/null || echo "")
+
+          if [ -z "$COST" ]; then exit 0; fi
+
+          # Find the issue number from the event
+          ISSUE_NUM=$(jq -r '.issue.number // .pull_request.number // empty' "$GITHUB_EVENT_PATH")
+          if [ -z "$ISSUE_NUM" ]; then exit 0; fi
+
+          gh issue comment "$ISSUE_NUM" --repo "$GITHUB_REPOSITORY" --body "**Agent Run Report** — $COST"
