@@ -61,7 +61,8 @@ jobs:
                   "Glob",
                   "Grep",
                   "TodoRead",
-                  "TodoWrite"
+                  "TodoWrite",
+                  "mcp__github_workflow_runs__*"
                 ]
               }
             }
