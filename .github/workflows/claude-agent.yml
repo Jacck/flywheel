@@ -84,7 +84,7 @@ jobs:
             - Commit to a new branch with a conventional commit message
             - Create a PR referencing the issue number
             - ALWAYS update project-map.md line ranges after editing index.html
-            - After completing a task, append a 1-2 line lesson to .claude/skills/lessons.md with date and issue number
+            - After completing a task, append a 1-2 line lesson to .claude/skills/lessons.md, stage it with git add, and include it in the commit
 
             ## Efficiency rules:
             - Solve the task in as few tool calls as possible
