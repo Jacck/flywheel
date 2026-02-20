@@ -16,6 +16,7 @@ Use it to decide which skill files to load before beginning work.
 ---
 
 ## General Skills
+- [Lesson: Verify file existence before referencing in PR descriptions](.claude/skills/general/20260220-1545_test-verify-skillbank-loading_failure.md)
 *Load these on EVERY task — no exceptions*
 
 - [PR Conventions](.claude/skills/general/pr-conventions.md)
