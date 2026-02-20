@@ -27,7 +27,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # Only trigger on agent-task label or @claude mention in comments
     if: |
       (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'agent-task')) ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
@@ -45,6 +44,27 @@ jobs:
         with:
           fetch-depth: 2
 
+      # Write task context to TASK.md so the agent can read it
+      # (agent cannot use Bash to read env vars — file is the safe approach)
+      - name: Write task context to TASK.md
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE:  ${{ github.event.issue.title }}
+          ISSUE_BODY:   ${{ github.event.issue.body }}
+          ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ', ') }}
+        run: |
+          cat > TASK.md << TASKEOF
+          # Current Task
+
+          **Issue:** #${ISSUE_NUMBER}
+          **Title:** ${ISSUE_TITLE}
+          **Labels:** ${ISSUE_LABELS}
+
+          ## Description
+
+          ${ISSUE_BODY}
+          TASKEOF
+
       # ── Core agent step ──────────────────────────────────────
       - name: Run Claude Code Agent
         id: agent
@@ -56,19 +76,22 @@ jobs:
           prompt: |
             You are the Flywheel autonomous coding agent.
 
-            BEFORE starting any task:
-            1. Read .claude/skillbank-index.md to see available skills
-            2. Load skills relevant to this task from .claude/skills/
-            3. Read CLAUDE.md for general guidelines
-            4. Read project-map.md to understand the codebase
+            Your task is described in TASK.md at the root of the repo. Read it first.
 
-            Then implement the requested changes from the issue.
+            Then follow these steps in order:
+            1. Read TASK.md — this contains the issue title, labels, and full description
+            2. Read .claude/skillbank-index.md — decide which skills apply
+            3. Load ALL files from .claude/skills/general/
+            4. Load task-specific skill files from .claude/skills/task-specific/ matching the labels
+            5. Read CLAUDE.md for general agent guidelines
+            6. Read project-map.md to understand the codebase structure
+            7. Implement the task described in TASK.md
+            8. Create a PR — include in the description which skill files you loaded
 
-            IMPORTANT:
+            Rules:
             - Keep index.html self-contained (single file, no build step)
-            - Create a PR with your changes
-            - Write a clear PR description explaining what you did and why
-            - If you hit an obstacle, document it in the PR description
+            - Never commit TASK.md — it is a temporary file for this run only
+            - If you hit an obstacle, document it clearly in the PR description
 
       # ── Find the PR the agent created ───────────────────────
       - name: Find PR created by agent
@@ -77,7 +100,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          sleep 5  # brief wait for PR to register
+          sleep 5
           PR_DATA=$(gh pr list \
             --state open \
             --author "github-actions[bot]" \
@@ -91,28 +114,24 @@ jobs:
 
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
           echo "pr_title=$PR_TITLE"   >> $GITHUB_OUTPUT
-          # Truncate body to 2000 chars to avoid env var limits
           echo "pr_body=${PR_BODY:0:2000}" >> $GITHUB_OUTPUT
-
           echo "Found PR: #$PR_NUMBER — $PR_TITLE"
 
   # ────────────────────────────────────────────────────────────
   # JOB 2: Distiller — extracts skill/lesson after agent run
-  # Runs always, whether agent succeeded or failed
-  # Commits directly to main (not the PR branch)
   # ────────────────────────────────────────────────────────────
   distiller:
     name: Distill Skill (SkillRL)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: agent
-    if: always()   # always runs — failures are valuable lessons too
+    if: always()
 
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v4
         with:
-          ref: main          # always commit skills to main, not the PR branch
+          ref: main
           fetch-depth: 2
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -142,13 +161,13 @@ jobs:
 
           git add .claude/skills/ lessons.md .claude/skillbank-index.md 2>/dev/null || true
 
-          # Only commit if there are actual changes
           if git diff --staged --quiet; then
             echo "No skill changes to commit."
           else
             OUTCOME="${{ needs.agent.outputs.outcome }}"
             ISSUE_TITLE="${{ github.event.issue.title }}"
             git commit -m "distill($OUTCOME): ${ISSUE_TITLE:0:60}"
+            git pull --rebase origin main
             git push origin main
             echo "✅ Skills committed to main"
           fi
