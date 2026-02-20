@@ -1,10 +1,10 @@
 name: Claude Code Agent
 
 on:
-  issue_comment:
-    types: [created]
   issues:
     types: [labeled]
+  issue_comment:
+    types: [created]
   pull_request_review_comment:
     types: [created]
 
@@ -13,120 +13,142 @@ permissions:
   issues: write
   pull-requests: write
   id-token: write
-  actions: read
 
 concurrency:
-  group: claude-agent
+  group: claude-agent-${{ github.event.issue.number || github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
-  claude:
+  # ────────────────────────────────────────────────────────────
+  # JOB 1: Agent — runs the Claude Code agent on the task
+  # ────────────────────────────────────────────────────────────
+  agent:
+    name: Run Claude Agent
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+    timeout-minutes: 20
 
-      - uses: anthropics/claude-code-action@v1
-        id: claude
+    # Only trigger on agent-task label or @claude mention in comments
+    if: |
+      (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'agent-task')) ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
+
+    outputs:
+      outcome:     ${{ steps.agent.outcome }}
+      pr_number:   ${{ steps.find-pr.outputs.pr_number }}
+      pr_title:    ${{ steps.find-pr.outputs.pr_title }}
+      pr_body:     ${{ steps.find-pr.outputs.pr_body }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      # ── Core agent step ──────────────────────────────────────
+      - name: Run Claude Code Agent
+        id: agent
+        uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           label_trigger: "agent-task"
-          claude_args: "--max-turns 30 --model claude-sonnet-4-6"
-          additional_permissions: |
-            actions: read
-          settings: |
-            {
-              "permissions": {
-                "allow": [
-                  "Bash(gh issue view:*)",
-                  "Bash(gh issue list:*)",
-                  "Bash(gh pr create:*)",
-                  "Bash(gh pr view:*)",
-                  "Bash(git add:*)",
-                  "Bash(git checkout:*)",
-                  "Bash(git commit:*)",
-                  "Bash(git push:*)",
-                  "Bash(git branch:*)",
-                  "Bash(git diff:*)",
-                  "Bash(git log:*)",
-                  "Bash(git fetch:*)",
-                  "Bash(git pull:*)",
-                  "Bash(git status)",
-                  "Read",
-                  "Write",
-                  "Edit",
-                  "MultiEdit",
-                  "Glob",
-                  "Grep",
-                  "TodoRead",
-                  "TodoWrite",
-                  "mcp__github_workflow_runs__*"
-                ]
-              }
-            }
+          claude_args: "--max-turns 30"
           prompt: |
             You are the Flywheel autonomous coding agent.
 
-            ## Mandatory first steps — always follow this order:
-            1. Read the triggering issue: use `gh issue view <number> --json title,body`
-            2. Read project-map.md ENTIRELY — this is your compressed understanding of the codebase
-            3. Read .claude/skills/ for procedures relevant to your task
-            4. Read ONLY the relevant code sections mentioned in project-map.md that match the task
-            5. If you need more context, ask yourself "which 50-200 line region do I need?" and read only that range
-            6. Never read the full index.html unless the change touches >40% of the file
+            BEFORE starting any task:
+            1. Read .claude/skillbank-index.md to see available skills
+            2. Load skills relevant to this task from .claude/skills/
+            3. Read CLAUDE.md for general guidelines
+            4. Read project-map.md to understand the codebase
 
-            ## Implementation rules:
-            - Implement the requested changes — do NOT just review or audit the codebase
-            - Follow the guidelines in CLAUDE.md
+            Then implement the requested changes from the issue.
+
+            IMPORTANT:
             - Keep index.html self-contained (single file, no build step)
-            - Commit to a new branch with a conventional commit message
-            - Create a PR referencing the issue number
-            - ALWAYS update project-map.md line ranges after editing index.html
-            - After completing a task, append a 1-2 line lesson to .claude/skills/lessons.md, stage it with git add, and include it in the commit
+            - Create a PR with your changes
+            - Write a clear PR description explaining what you did and why
+            - If you hit an obstacle, document it in the PR description
 
-            ## Efficiency rules:
-            - Solve the task in as few tool calls as possible
-            - Plan first, then execute — avoid exploratory loops
-            - If the issue provides line numbers, go directly to those lines
-
-      - name: Post cost report
-        if: always() && steps.claude.outputs.execution_file
+      # ── Find the PR the agent created ───────────────────────
+      - name: Find PR created by agent
+        id: find-pr
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          EXEC_FILE="${{ steps.claude.outputs.execution_file }}"
-          if [ ! -f "$EXEC_FILE" ]; then exit 0; fi
+          sleep 5  # brief wait for PR to register
+          PR_DATA=$(gh pr list \
+            --state open \
+            --author "github-actions[bot]" \
+            --limit 1 \
+            --json number,title,body \
+            2>/dev/null || echo "[]")
 
-          # Extract cost and duration from execution data
-          COST=$(python3 -c "
-          import json, sys
-          data = json.load(open('$EXEC_FILE'))
-          # Handle both array and object formats
-          items = data if isinstance(data, list) else [data]
-          for item in reversed(items):
-            t = item.get('type', '')
-            if t in ('result', 'final_result'):
-              d = item.get('data', item)
-              cost = d.get('total_cost_usd', d.get('cost_usd', 0))
-              dur = d.get('duration_ms', 0) / 1000
-              turns = d.get('num_turns', 0)
-              print(f'Cost: \${cost:.4f} | Duration: {dur:.1f}s | Turns: {turns}')
-              sys.exit(0)
-            # Also check top-level fields (non-nested format)
-            if 'total_cost_usd' in item:
-              cost = item['total_cost_usd']
-              dur = item.get('duration_ms', 0) / 1000
-              turns = item.get('num_turns', 0)
-              print(f'Cost: \${cost:.4f} | Duration: {dur:.1f}s | Turns: {turns}')
-              sys.exit(0)
-          " 2>/dev/null || echo "")
+          PR_NUMBER=$(echo "$PR_DATA" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['number'] if d else '')" 2>/dev/null || echo "")
+          PR_TITLE=$(echo  "$PR_DATA" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['title']  if d else '')" 2>/dev/null || echo "")
+          PR_BODY=$(echo   "$PR_DATA" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['body']   if d else '')" 2>/dev/null || echo "")
 
-          if [ -z "$COST" ]; then exit 0; fi
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "pr_title=$PR_TITLE"   >> $GITHUB_OUTPUT
+          # Truncate body to 2000 chars to avoid env var limits
+          echo "pr_body=${PR_BODY:0:2000}" >> $GITHUB_OUTPUT
 
-          # Find the issue number from the event
-          ISSUE_NUM=$(jq -r '.issue.number // .pull_request.number // empty' "$GITHUB_EVENT_PATH")
-          if [ -z "$ISSUE_NUM" ]; then exit 0; fi
+          echo "Found PR: #$PR_NUMBER — $PR_TITLE"
 
-          gh issue comment "$ISSUE_NUM" --repo "$GITHUB_REPOSITORY" --body "**Agent Run Report** — $COST"
+  # ────────────────────────────────────────────────────────────
+  # JOB 2: Distiller — extracts skill/lesson after agent run
+  # Runs always, whether agent succeeded or failed
+  # Commits directly to main (not the PR branch)
+  # ────────────────────────────────────────────────────────────
+  distiller:
+    name: Distill Skill (SkillRL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: agent
+    if: always()   # always runs — failures are valuable lessons too
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main          # always commit skills to main, not the PR branch
+          fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Anthropic SDK
+        run: pip install anthropic --quiet
+
+      - name: Run distiller
+        id: distill
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TASK_TITLE:        ${{ github.event.issue.title }}
+          TASK_DESCRIPTION:  ${{ github.event.issue.body }}
+          TASK_LABELS:       ${{ join(github.event.issue.labels.*.name, ',') }}
+          TASK_OUTCOME:      ${{ needs.agent.outputs.outcome }}
+          PR_NUMBER:         ${{ needs.agent.outputs.pr_number }}
+          PR_TITLE:          ${{ needs.agent.outputs.pr_title }}
+          PR_BODY:           ${{ needs.agent.outputs.pr_body }}
+        run: |
+          python3 .github/scripts/distill.py
+
+      - name: Commit skills to main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name  "flywheel-distiller[bot]"
+          git config user.email "flywheel-distiller@users.noreply.github.com"
+
+          git add .claude/skills/ lessons.md .claude/skillbank-index.md 2>/dev/null || true
+
+          # Only commit if there are actual changes
+          if git diff --staged --quiet; then
+            echo "No skill changes to commit."
+          else
+            OUTCOME="${{ needs.agent.outputs.outcome }}"
+            ISSUE_TITLE="${{ github.event.issue.title }}"
+            git commit -m "distill($OUTCOME): ${ISSUE_TITLE:0:60}"
+            git push origin main
+            echo "✅ Skills committed to main"
+          fi
