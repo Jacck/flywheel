@@ -1,0 +1,64 @@
+# SkillBank Index
+*Flywheel SkillRL — Phase 2*
+
+This file is the FIRST thing the agent reads at the start of every task.
+Use it to decide which skill files to load before beginning work.
+
+---
+
+## How to use this index
+
+1. Read your task's GitHub issue labels
+2. Match labels to the **Task-Specific Skills** section below
+3. Load the matching skill file(s) by reading them
+4. Always load ALL files listed under **General Skills**
+
+---
+
+## General Skills
+*Load these on EVERY task — no exceptions*
+
+- [PR Conventions](.claude/skills/general/pr-conventions.md)
+- [Code Quality Rules](.claude/skills/general/code-quality.md)
+- [GitHub Actions Awareness](.claude/skills/general/github-actions-awareness.md)
+
+---
+
+## Task-Specific Skills
+*Load based on issue labels*
+
+### Label: `ui` / `ui-change` / `dashboard`
+- [UI Changes](.claude/skills/task-specific/ui-changes.md)
+
+### Label: `cost` / `cost-tracking`
+- [Cost Tracking](.claude/skills/task-specific/cost-tracking.md)
+
+### Label: `workflow` / `workflow-fix` / `infra`
+- [Workflow Fixes](.claude/skills/task-specific/workflow-fixes.md)
+
+---
+
+## Auto-Generated Skills
+*Written automatically by the Distiller after each run*
+*Newest entries appear at the top of each section*
+
+### task-specific/ui-changes
+<!-- distiller inserts here: ui-changes -->
+
+### task-specific/cost-tracking
+<!-- distiller inserts here: cost-tracking -->
+
+### task-specific/workflow-fixes
+<!-- distiller inserts here: workflow-fixes -->
+
+### general
+<!-- distiller inserts here: general -->
+
+---
+
+## Stats
+*Updated by distiller*
+
+- Total skills: 5
+- Last distillation: *(not yet run)*
+- Tasks processed: 0
