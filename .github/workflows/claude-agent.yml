@@ -69,10 +69,11 @@ jobs:
       - name: Run Claude Code Agent
         id: agent
         uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_MODEL: claude-haiku-4-5
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           label_trigger: "agent-task"
-          claude_args: "--max-turns 5 --model claude-haiku-4-5"
           prompt: |
             You are the Flywheel autonomous coding agent.
 
