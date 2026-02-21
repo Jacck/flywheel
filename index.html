@@ -553,17 +553,6 @@
         </div>
       </div>
 
-      <!-- Quick dispatch -->
-      <div class="card">
-        <div class="card-title"><span class="icon">⊳</span> Dispatch Task</div>
-        <div class="input-area" style="flex-direction: column;">
-          <input type="text" id="taskInput" placeholder="Describe a task for the agent...">
-          <button class="btn" onclick="dispatchTask()" id="dispatchBtn" style="width: 100%;">Create Issue → Agent</button>
-        </div>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; font-family: var(--mono);">
-          <span id="dispatchHint">Creates a GitHub Issue with label <code style="background:var(--bg-elevated);padding:1px 5px;border-radius:3px;color:var(--accent-cyan);">agent-task</code> — triggers agent automatically</span>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -688,26 +677,6 @@
     }
   }
 
-  // ── POST to GitHub API (for creating issues) ──
-  async function ghPost(endpoint, body) {
-    try {
-      const headers = {
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-      };
-      if (state.pat) headers['Authorization'] = `Bearer ${state.pat}`;
-      const res = await fetch(`${GITHUB_API}/repos/${state.repo}${endpoint}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      return await res.json();
-    } catch (e) {
-      log(`API POST error: ${e.message}`, 'err');
-      return null;
-    }
-  }
 
   // ── Initialize dashboard ──
   async function init() {
@@ -750,12 +719,6 @@
     $('statusDot').className = 'status-dot';
     $('statusText').textContent = repoData.private ? 'Connected (private)' : 'Connected';
 
-    // Update dispatch hint based on auth
-    if (state.pat) {
-      $('dispatchHint').innerHTML = 'Creates issue directly via API → triggers agent automatically';
-    } else {
-      $('dispatchHint').innerHTML = 'Opens GitHub issue page (add PAT to create directly from here)';
-    }
 
     // Load data
     await Promise.all([loadIssues(), loadCommits(), loadPRs(), loadActivity(), loadWorkflowRuns(), loadCostData()]);
@@ -779,7 +742,7 @@
     queue.innerHTML = '';
 
     if (issues.length === 0) {
-      queue.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; padding: 8px 0;">No agent tasks yet. Use Dispatch Task above to create one.</div>';
+      queue.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; padding: 8px 0;">No agent tasks yet. Create one on GitHub with the agent-task label.</div>';
       return;
     }
 
@@ -966,42 +929,6 @@
     });
   }
 
-  // ── Dispatch a task ──
-  async function dispatchTask() {
-    const title = $('taskInput').value.trim();
-    if (!title) { log('Enter a task description', 'warn'); return; }
-
-    // If we have a PAT, create the issue directly via API
-    if (state.pat) {
-      $('dispatchBtn').textContent = 'Creating...';
-      $('dispatchBtn').disabled = true;
-
-      const issue = await ghPost('/issues', {
-        title: title,
-        body: `## Agent Task\n\n${title}\n\n---\n*Created from Flywheel Dashboard*`,
-        labels: ['agent-task'],
-      });
-
-      $('dispatchBtn').textContent = 'Create Issue → Agent';
-      $('dispatchBtn').disabled = false;
-
-      if (issue) {
-        log(`Created issue #${issue.number}: "${title}" → agent triggered`, 'info');
-        $('taskInput').value = '';
-        // Refresh task queue
-        setTimeout(() => loadIssues(), 1000);
-        setTimeout(() => loadWorkflowRuns(), 5000); // workflow takes a few seconds to start
-      } else {
-        log('Failed to create issue. Check PAT permissions (needs repo scope).', 'err');
-      }
-    } else {
-      // Fallback: open GitHub issue page
-      const url = `https://github.com/${state.repo}/issues/new?title=${encodeURIComponent(title)}&labels=agent-task&body=${encodeURIComponent(`## Agent Task\n\n${title}\n\n---\n*Created from Flywheel Dashboard*`)}`;
-      window.open(url, '_blank');
-      $('taskInput').value = '';
-      log(`Opening GitHub to create task: "${title}"`, 'info');
-    }
-  }
 
   // ── Helpers ──
   function escHtml(s) {
