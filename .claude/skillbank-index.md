@@ -16,6 +16,7 @@ Use it to decide which skill files to load before beginning work.
 ---
 
 ## General Skills
+- [Skill: Remove User-Facing Action Capability for Security Hardening](.claude/skills/task-specific/general/20260221-1554_security-remove-dispatch-task-box-and-al_success.md)
 - [Lesson: Verify Complete Removal of Dependent Code Before Deletion](.claude/skills/general/20260221-1540_security-remove-dispatch-task-box-and-al_failure.md)
 - [I'd be happy to help extract a failure lesson, but I need additional information about the actual failure that occurred. Could you please provide:](.claude/skills/general/20260220-1606_test-add-a-comment-to-indexhtml_failure.md)
 - [Lesson: Verify file existence before referencing in PR descriptions](.claude/skills/general/20260220-1545_test-verify-skillbank-loading_failure.md)
