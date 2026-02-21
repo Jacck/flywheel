@@ -37,6 +37,7 @@ jobs:
       pr_number:   ${{ steps.find-pr.outputs.pr_number }}
       pr_title:    ${{ steps.find-pr.outputs.pr_title }}
       pr_body:     ${{ steps.find-pr.outputs.pr_body }}
+      cost:        ${{ steps.extract-cost.outputs.cost }}
 
     steps:
       - name: Checkout repository
