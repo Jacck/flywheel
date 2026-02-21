@@ -16,6 +16,7 @@ Use it to decide which skill files to load before beginning work.
 ---
 
 ## General Skills
+- [Skill: Enable Reporting in CI/CD Action Configuration](.claude/skills/task-specific/general/20260221-1625_fix-agent-spend-not-updating-on-dashboar_success.md)
 - [Skill: Remove Deprecated Commands from Configuration Files](.claude/skills/task-specific/general/20260221-1607_fix-remove-deprecated-set-output-command_success.md)
 - [Skill: Remove User-Facing Action Capability for Security Hardening](.claude/skills/task-specific/general/20260221-1554_security-remove-dispatch-task-box-and-al_success.md)
 - [Lesson: Verify Complete Removal of Dependent Code Before Deletion](.claude/skills/general/20260221-1540_security-remove-dispatch-task-box-and-al_failure.md)
