@@ -22,7 +22,7 @@ import sys
 import json
 import subprocess
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -257,8 +257,18 @@ Format your response EXACTLY like this:
     print(f"   Lessons    : {LESSONS_FILE}")
     print(f"   Cost       : ~$0.001 (Haiku)")
 
-    # Return the skill path for the workflow to use in the commit message
-    print(f"\n::set-output name=skill_file::{skill_path}")
+    # ── Write costs.json ──────────────────────────────────────────────────────
+
+    costs_file = Path("costs.json")
+    existing_costs = json.loads(costs_file.read_text()) if costs_file.exists() else []
+    existing_costs.insert(0, {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "issue_title": task_title,
+        "outcome": outcome,
+        "cost_usd": float(os.environ.get("TASK_COST", 0))
+    })
+    costs_file.write_text(json.dumps(existing_costs, indent=2))
+    print(f"Updated: {costs_file}")
 
 
 if __name__ == "__main__":
