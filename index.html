@@ -825,43 +825,31 @@
 
   // ── Load activity feed ──
   // ── Load cost data from agent comments ──
-  async function loadCostData() {
-    try {
-      const issues = await ghFetch('/issues?state=all&labels=agent-task&per_page=50');
-      if (!issues || !Array.isArray(issues)) return;
+async function loadCostData() {
+  try {
+    const resp = await ghFetch('/contents/costs.json');
+    if (!resp || !resp.content) {
+      $('statSpend').textContent = '$0.00';
+      $('statSpendLabel').textContent = 'no runs yet';
+      return;
+    }
+    const data = JSON.parse(atob(resp.content.replace(/\n/g, '')));
+    if (!data.length) return;
 
-      let totalCost = 0;
-      let runCount = 0;
-      let lastCost = 0;
+    const totalCost = data.reduce((s, r) => s + (r.cost_usd || 0), 0);
+    const runCount  = data.length;
+    const lastCost  = data[0].cost_usd || 0;
+    const avg       = totalCost / runCount;
 
-      const commentPromises = issues.map(issue =>
-        ghFetch(`/issues/${issue.number}/comments?per_page=30`)
-      );
-      const allComments = await Promise.all(commentPromises);
-
-      for (const comments of allComments) {
-        if (!comments || !Array.isArray(comments)) continue;
-        for (const comment of comments) {
-          // Match any bot comment containing cost data
-          const login = (comment.user && comment.user.login) || '';
-          const isBot = login.includes('[bot]') || login === 'github-actions';
-          if (!isBot) continue;
-
-          const body = comment.body || '';
-          // Match patterns: "Cost: $0.4108" or "total_cost_usd: 0.38" or "$0.38"
-          const costMatch = body.match(/Cost:\s*\$?([\d.]+)/i)
-            || body.match(/total_cost_usd[:\s]+([\d.]+)/i)
-            || body.match(/Agent Run Report[^$]*\$([\d.]+)/i);
-          if (costMatch) {
-            const cost = parseFloat(costMatch[1]);
-            if (!isNaN(cost) && cost > 0) {
-              totalCost += cost;
-              runCount++;
-              lastCost = cost;
-            }
-          }
-        }
-      }
+    $('statSpend').textContent = '$' + totalCost.toFixed(2);
+    $('statSpendLabel').textContent =
+      `${runCount} runs · avg $${avg.toFixed(2)} · last $${lastCost.toFixed(2)}`;
+  } catch (e) {
+    console.error('Cost tracking error:', e);
+    $('statSpend').textContent = '—';
+    $('statSpendLabel').textContent = 'error loading costs';
+  }
+}
 
       if (runCount > 0) {
         const avg = totalCost / runCount;
