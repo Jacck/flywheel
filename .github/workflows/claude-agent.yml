@@ -72,7 +72,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           label_trigger: "agent-task"
-          claude_args: "--max-turns 30 --model claude-sonnet-4-6 --allowedTools Edit,Write,Bash,GitCreateBranch,GitCommit,GitPush,CreatePullRequest,ReadFile,ListFiles,Glob"
+          claude_args: "--max-turns 30 --model claude-haiku-4-5-20251001 --allowedTools Edit,Write,Bash,GitCreateBranch,GitCommit,GitPush,CreatePullRequest,ReadFile,ListFiles,Glob"
           prompt: |
             You are the Flywheel autonomous coding agent.
 
