@@ -118,6 +118,22 @@ jobs:
           echo "pr_body=${PR_BODY:0:2000}" >> $GITHUB_OUTPUT
           echo "Found PR: #$PR_NUMBER — $PR_TITLE"
 
+      # ── Extract run cost ─────────────────────────────────────
+      - name: Extract run cost
+        id: extract-cost
+        if: always()
+        run: |
+          python3 -c "
+          import json, os
+          try:
+              d = json.load(open('/home/runner/work/_temp/claude-execution-output.json'))
+              cost = d.get('total_cost_usd', 0)
+          except:
+              cost = 0
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'cost={cost}\n')
+          "
+
   # ────────────────────────────────────────────────────────────
   # JOB 2: Distiller — extracts skill/lesson after agent run
   # ────────────────────────────────────────────────────────────
@@ -171,4 +187,5 @@ jobs:
             git pull --rebase origin main
             git push origin main
             echo "✅ Skills committed to main"
+            git add .claude/skills/ lessons.md .claude/skillbank-index.md costs.json 2>/dev/null || true
           fi
