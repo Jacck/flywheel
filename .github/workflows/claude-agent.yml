@@ -137,44 +137,41 @@ jobs:
           path = os.environ.get('EXECUTION_FILE', '')
           print(f'execution_file output: {repr(path)}')
 
+          def extract_cost_from_data(data):
+              """Extract total_cost_usd from execution file content (JSON array or dict)."""
+              if isinstance(data, list):
+                  for msg in data:
+                      if isinstance(msg, dict) and msg.get('type') == 'result':
+                          return float(msg.get('total_cost_usd', 0))
+              elif isinstance(data, dict):
+                  return float(data.get('total_cost_usd', 0))
+              return 0
+
           # Strategy 1: use the action's execution_file output directly
           if path and os.path.isfile(path):
               try:
                   data = json.load(open(path))
-                  # stream-json format: array of messages; cost is in the "result" message
-                  if isinstance(data, list):
-                      for msg in data:
-                          if isinstance(msg, dict) and msg.get('type') == 'result':
-                              cost = float(msg.get('cost_usd', msg.get('costUSD', 0)))
-                              print(f'Found cost in result message: {cost}')
-                              break
-                  elif isinstance(data, dict):
-                      cost = float(data.get('cost_usd', data.get('costUSD',
-                                   data.get('total_cost_usd', 0))))
-                      print(f'Found cost in dict: {cost}')
+                  cost = extract_cost_from_data(data)
+                  print(f'Found cost {cost} in execution_file: {path}')
               except Exception as e:
                   print(f'Could not parse {path}: {e}')
 
-          # Strategy 2: scan common temp locations if still 0
+          # Strategy 2: scan $RUNNER_TEMP and common locations if still 0
           if cost == 0:
+              runner_temp = os.environ.get('RUNNER_TEMP', '/home/runner/work/_temp')
               patterns = [
-                  '/home/runner/work/_temp/claude-*.json',
+                  f'{runner_temp}/claude-execution-output.json',
+                  f'{runner_temp}/claude-*.json',
                   '/tmp/claude-*.json',
-                  '/home/runner/work/_temp/*.json',
               ]
               for pattern in patterns:
                   for f in glob.glob(pattern):
                       try:
                           data = json.load(open(f))
-                          if isinstance(data, list):
-                              for msg in data:
-                                  if isinstance(msg, dict) and msg.get('type') == 'result':
-                                      c = float(msg.get('cost_usd', msg.get('costUSD', 0)))
-                                      if c:
-                                          cost = c
-                                          print(f'Found cost {cost} in {f}')
-                                          break
-                          if cost:
+                          c = extract_cost_from_data(data)
+                          if c:
+                              cost = c
+                              print(f'Found cost {cost} in {f}')
                               break
                       except Exception:
                           pass
