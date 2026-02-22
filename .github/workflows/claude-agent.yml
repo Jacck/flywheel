@@ -123,15 +123,6 @@ jobs:
           echo "pr_body=${PR_BODY:0:2000}" >> $GITHUB_OUTPUT
           echo "Found PR: #$PR_NUMBER — $PR_TITLE"
 
-      # ── Debug: locate execution output file ──────────────────
-      - name: Debug cost file
-        if: always()
-        run: |
-          echo "=== RUNNER_TEMP: $RUNNER_TEMP ==="
-          echo "=== execution_file output: ${{ steps.agent.outputs.execution_file }} ==="
-          find /home/runner/work -name "claude-execution-output.json" 2>/dev/null || echo "file not found under /home/runner/work"
-          find /tmp -name "claude-*.json" 2>/dev/null || echo "no claude-*.json in /tmp"
-
       # ── Extract run cost ─────────────────────────────────────
       - name: Extract run cost
         id: extract-cost
@@ -143,11 +134,15 @@ jobs:
           import json, os, glob
 
           cost = 0
-          path = os.environ.get('EXECUTION_FILE', '')
-          print(f'execution_file output: {repr(path)}')
 
-          def extract_cost_from_data(data):
-              """Extract total_cost_usd from execution file content (JSON array or dict)."""
+          # Log everything so we can diagnose if it fails again
+          runner_temp = os.environ.get('RUNNER_TEMP', '')
+          exec_file   = os.environ.get('EXECUTION_FILE', '')
+          print(f'RUNNER_TEMP       : {runner_temp!r}')
+          print(f'execution_file    : {exec_file!r}')
+
+          def extract_cost(data):
+              """Return total_cost_usd from a JSON array of SDK messages or a plain dict."""
               if isinstance(data, list):
                   for msg in data:
                       if isinstance(msg, dict) and msg.get('type') == 'result':
@@ -156,34 +151,35 @@ jobs:
                   return float(data.get('total_cost_usd', 0))
               return 0
 
-          # Strategy 1: use the action's execution_file output directly
-          if path and os.path.isfile(path):
+          def try_file(path):
               try:
                   data = json.load(open(path))
-                  cost = extract_cost_from_data(data)
-                  print(f'Found cost {cost} in execution_file: {path}')
+                  c = extract_cost(data)
+                  print(f'  tried {path} → cost={c}')
+                  return c
               except Exception as e:
-                  print(f'Could not parse {path}: {e}')
+                  print(f'  tried {path} → error: {e}')
+                  return 0
 
-          # Strategy 2: scan $RUNNER_TEMP and common locations if still 0
-          if cost == 0:
-              runner_temp = os.environ.get('RUNNER_TEMP', '/home/runner/work/_temp')
-              patterns = [
-                  f'{runner_temp}/claude-execution-output.json',
+          # 1. Exact path reported by the action
+          if exec_file and os.path.isfile(exec_file):
+              cost = try_file(exec_file)
+
+          # 2. $RUNNER_TEMP/claude-execution-output.json  (canonical location per action source)
+          if not cost and runner_temp:
+              cost = try_file(os.path.join(runner_temp, 'claude-execution-output.json'))
+
+          # 3. Glob fallback — catches any naming variation
+          if not cost:
+              for pattern in [
                   f'{runner_temp}/claude-*.json',
+                  '/home/runner/work/_temp/claude-*.json',
                   '/tmp/claude-*.json',
-              ]
-              for pattern in patterns:
+              ]:
                   for f in glob.glob(pattern):
-                      try:
-                          data = json.load(open(f))
-                          c = extract_cost_from_data(data)
-                          if c:
-                              cost = c
-                              print(f'Found cost {cost} in {f}')
-                              break
-                      except Exception:
-                          pass
+                      cost = try_file(f)
+                      if cost:
+                          break
                   if cost:
                       break
 
