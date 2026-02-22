@@ -20,6 +20,20 @@ I cannot extract a reliable, specific failure lesson as per your requirements (n
 Once you share those details, I can extract a precise, actionable lesson following your format.
 
 ---
+*20260222-2240 | Fix: extract-cost rewrite with 3-fallback path logic | SUCCESS | cost-tracking*
+
+## Skill: Robust CI Cost Extraction via Layered Path Resolution
+*Category: cost-tracking | Outcome: SUCCESS | Extracted: 20260222-2240*
+
+- Use the action's own output variable (`steps.agent.outputs.execution_file`) as the **primary source** for the execution output file path — it is authoritative and avoids any guessing about runner filesystem layout
+- Fall back to `$RUNNER_TEMP`-based paths using the environment variable, never a hardcoded string like `/home/runner/work/_temp/` — runner temp locations differ across hosted and self-hosted runners
+- Add a glob fallback as a last resort: walk `$RUNNER_TEMP` for any `*execution-output*.json` file so the step survives even if the filename changes in a future action version
+- Log every path attempt (tried path, whether it existed, whether parsing succeeded) — silent fallbacks to `0.0` make the bug invisible and very hard to diagnose
+- The actual cost field is `total_cost_usd` (not `cost_usd`) — verify field names against the real action output schema, not assumed names
+- Pass the extracted value via `$GITHUB_OUTPUT` as `TASK_COST`; the downstream distiller reads it as an env var and appends to `costs.json`
+- Three consecutive `FAILURE` lessons on the same problem (path not found) is a signal to redesign the approach entirely rather than patch the path one more time
+
+---
 *20260222-1527 | Add last-updated timestamp to dashboard header | SUCCESS | general*
 
 ## Skill: Timestamp Injection at Build Time
