@@ -823,43 +823,26 @@
     log(`Loaded ${runs.workflow_runs.length} recent workflow runs`, 'dim');
   }
 
-  // ── Load activity feed ──
-  // ── Load cost data from agent comments ──
-async function loadCostData() {
-  try {
-    const resp = await ghFetch('/contents/costs.json');
-    if (!resp || !resp.content) {
-      $('statSpend').textContent = '$0.00';
-      $('statSpendLabel').textContent = 'no runs yet';
-      return;
-    }
-    const data = JSON.parse(atob(resp.content.replace(/\n/g, '')));
-    if (!data.length) return;
-
-    const totalCost = data.reduce((s, r) => s + (r.cost_usd || 0), 0);
-    const runCount  = data.length;
-    const lastCost  = data[0].cost_usd || 0;
-    const avg       = totalCost / runCount;
-
-    $('statSpend').textContent = '$' + totalCost.toFixed(2);
-    $('statSpendLabel').textContent =
-      `${runCount} runs · avg $${avg.toFixed(2)} · last $${lastCost.toFixed(2)}`;
-  } catch (e) {
-    console.error('Cost tracking error:', e);
-    $('statSpend').textContent = '—';
-    $('statSpendLabel').textContent = 'error loading costs';
-  }
-}
-
-      if (runCount > 0) {
-        const avg = totalCost / runCount;
-        $('statSpend').textContent = '$' + totalCost.toFixed(2);
-        $('statSpendLabel').textContent =
-          `${runCount} runs · avg $${avg.toFixed(2)} · last $${lastCost.toFixed(2)}`;
-      } else {
+  // ── Load cost data from costs.json ──
+  async function loadCostData() {
+    try {
+      const resp = await ghFetch('/contents/costs.json');
+      if (!resp || !resp.content) {
         $('statSpend').textContent = '$0.00';
-        $('statSpendLabel').textContent = 'no agent runs found';
+        $('statSpendLabel').textContent = 'no runs yet';
+        return;
       }
+      const data = JSON.parse(atob(resp.content.replace(/\n/g, '')));
+      if (!data.length) return;
+
+      const totalCost = data.reduce((s, r) => s + (r.cost_usd || 0), 0);
+      const runCount  = data.length;
+      const lastCost  = data[0].cost_usd || 0;
+      const avg       = totalCost / runCount;
+
+      $('statSpend').textContent = '$' + totalCost.toFixed(2);
+      $('statSpendLabel').textContent =
+        `${runCount} runs · avg $${avg.toFixed(2)} · last $${lastCost.toFixed(2)}`;
     } catch (e) {
       console.error('Cost tracking error:', e);
       $('statSpend').textContent = '—';
