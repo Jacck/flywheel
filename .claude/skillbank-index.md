@@ -16,6 +16,7 @@ Use it to decide which skill files to load before beginning work.
 ---
 
 ## General Skills
+- [I don't have access to the actual failure logs, error messages, or details about what specifically went wrong with this GitHub Actions task. Without knowing:](.claude/skills/general/20260222-2250_last-updated-field-date-and-time_failure.md)
 - [Skill: Timestamp Injection at Build Time](.claude/skills/task-specific/general/20260222-1527_add-last-updated-timestamp-to-dashboard-_success.md)
 - [Skill: Static Content Update with Pipeline Validation](.claude/skills/task-specific/general/20260222-1302_test-add-build-date-to-dashboard-footer_success.md)
 - [Lesson: Verify file path accessibility before extracting from runner temp files](.claude/skills/general/20260221-1938_fix-pass-agent-run-cost-to-distiller-and_failure.md)
