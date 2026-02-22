@@ -127,17 +127,64 @@ jobs:
       - name: Extract run cost
         id: extract-cost
         if: always()
+        env:
+          EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
         run: |
-          python3 -c "
-          import json, os
-          try:
-              d = json.load(open('/home/runner/work/_temp/claude-execution-output.json'))
-              cost = d.get('total_cost_usd', 0)
-          except:
-              cost = 0
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f'cost={cost}\n')
-          "
+          python3 << 'PYEOF'
+          import json, os, glob
+
+          cost = 0
+          path = os.environ.get('EXECUTION_FILE', '')
+          print(f'execution_file output: {repr(path)}')
+
+          # Strategy 1: use the action's execution_file output directly
+          if path and os.path.isfile(path):
+              try:
+                  data = json.load(open(path))
+                  # stream-json format: array of messages; cost is in the "result" message
+                  if isinstance(data, list):
+                      for msg in data:
+                          if isinstance(msg, dict) and msg.get('type') == 'result':
+                              cost = float(msg.get('cost_usd', msg.get('costUSD', 0)))
+                              print(f'Found cost in result message: {cost}')
+                              break
+                  elif isinstance(data, dict):
+                      cost = float(data.get('cost_usd', data.get('costUSD',
+                                   data.get('total_cost_usd', 0))))
+                      print(f'Found cost in dict: {cost}')
+              except Exception as e:
+                  print(f'Could not parse {path}: {e}')
+
+          # Strategy 2: scan common temp locations if still 0
+          if cost == 0:
+              patterns = [
+                  '/home/runner/work/_temp/claude-*.json',
+                  '/tmp/claude-*.json',
+                  '/home/runner/work/_temp/*.json',
+              ]
+              for pattern in patterns:
+                  for f in glob.glob(pattern):
+                      try:
+                          data = json.load(open(f))
+                          if isinstance(data, list):
+                              for msg in data:
+                                  if isinstance(msg, dict) and msg.get('type') == 'result':
+                                      c = float(msg.get('cost_usd', msg.get('costUSD', 0)))
+                                      if c:
+                                          cost = c
+                                          print(f'Found cost {cost} in {f}')
+                                          break
+                          if cost:
+                              break
+                      except Exception:
+                          pass
+                  if cost:
+                      break
+
+          print(f'Final cost: {cost}')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
+              fh.write(f'cost={cost}\n')
+          PYEOF
 
   # ────────────────────────────────────────────────────────────
   # JOB 2: Distiller — extracts skill/lesson after agent run
