@@ -19,6 +19,7 @@ Use it to decide which skill files to load before beginning work.
 - [I don't have access to the actual failure logs, error messages, or details about what specifically went wrong with this GitHub Actions task. Without knowing:](.claude/skills/general/20260222-2250_last-updated-field-date-and-time_failure.md)
 - [Skill: Timestamp Injection at Build Time](.claude/skills/task-specific/general/20260222-1527_add-last-updated-timestamp-to-dashboard-_success.md)
 - [Skill: Static Content Update with Pipeline Validation](.claude/skills/task-specific/general/20260222-1302_test-add-build-date-to-dashboard-footer_success.md)
+- [Skill: Robust CI Cost Extraction via Layered Path Resolution](.claude/skills/task-specific/general/20260222-2240_fix-extract-cost-rewrite-3-fallback-path_success.md)
 - [Lesson: Verify file path accessibility before extracting from runner temp files](.claude/skills/general/20260221-1938_fix-pass-agent-run-cost-to-distiller-and_failure.md)
 - [Lesson: Verify intermediate file existence and JSON structure before consuming in downstream jobs](.claude/skills/general/20260221-1929_fix-pass-agent-run-cost-to-distiller-and_failure.md)
 - [Lesson: Verify JSON file path accessibility and parsing in workflow context](.claude/skills/general/20260221-1827_fix-pass-agent-run-cost-to-distiller-and_failure.md)
@@ -72,6 +73,6 @@ Use it to decide which skill files to load before beginning work.
 ## Stats
 *Updated by distiller*
 
-- Total skills: 5
-- Last distillation: *(not yet run)*
-- Tasks processed: 0
+- Total skills: 6
+- Last distillation: 20260222-2240
+- Tasks processed: 1
