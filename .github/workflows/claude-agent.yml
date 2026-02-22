@@ -123,6 +123,15 @@ jobs:
           echo "pr_body=${PR_BODY:0:2000}" >> $GITHUB_OUTPUT
           echo "Found PR: #$PR_NUMBER — $PR_TITLE"
 
+      # ── Debug: locate execution output file ──────────────────
+      - name: Debug cost file
+        if: always()
+        run: |
+          echo "=== RUNNER_TEMP: $RUNNER_TEMP ==="
+          echo "=== execution_file output: ${{ steps.agent.outputs.execution_file }} ==="
+          find /home/runner/work -name "claude-execution-output.json" 2>/dev/null || echo "file not found under /home/runner/work"
+          find /tmp -name "claude-*.json" 2>/dev/null || echo "no claude-*.json in /tmp"
+
       # ── Extract run cost ─────────────────────────────────────
       - name: Extract run cost
         id: extract-cost
