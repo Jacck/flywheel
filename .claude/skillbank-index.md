@@ -16,6 +16,7 @@ Use it to decide which skill files to load before beginning work.
 ---
 
 ## General Skills
+- [Skill: Static Content Update with Pipeline Validation](.claude/skills/task-specific/general/20260222-1302_test-add-build-date-to-dashboard-footer_success.md)
 - [Lesson: Verify file path accessibility before extracting from runner temp files](.claude/skills/general/20260221-1938_fix-pass-agent-run-cost-to-distiller-and_failure.md)
 - [Lesson: Verify intermediate file existence and JSON structure before consuming in downstream jobs](.claude/skills/general/20260221-1929_fix-pass-agent-run-cost-to-distiller-and_failure.md)
 - [Lesson: Verify JSON file path accessibility and parsing in workflow context](.claude/skills/general/20260221-1827_fix-pass-agent-run-cost-to-distiller-and_failure.md)
