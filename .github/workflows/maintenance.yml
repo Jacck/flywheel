@@ -51,8 +51,51 @@ jobs:
           PROMPT
           fi
 
-      - uses: anthropics/claude-code-action@v1
+      - name: Run Claude Maintenance Agent
+        id: agent
+        uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: "--max-turns 15 --model claude-haiku-4-5-20251001 --allowedTools Edit,Write,Bash,GitCreateBranch,GitCommit,GitPush,CreatePullRequest,ReadFile,ListFiles,Glob"
           prompt: ${{ steps.prompt.outputs.task }}
+
+      - name: Extract and save maintenance cost
+        if: always()
+        run: |
+          python3 -c "
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          try:
+              d = json.load(open('/home/runner/work/_temp/claude-execution-output.json'))
+              cost = d.get('total_cost_usd', 0)
+          except:
+              cost = 0
+
+          costs_file = Path('costs.json')
+          existing = json.loads(costs_file.read_text()) if costs_file.exists() else []
+          existing.insert(0, {
+              'timestamp': datetime.now(timezone.utc).isoformat(),
+              'issue_title': 'maintenance: ${{ github.event.inputs.task || 'daily housekeeping' }}',
+              'outcome': '${{ job.status }}',
+              'cost_usd': cost
+          })
+          costs_file.write_text(json.dumps(existing, indent=2))
+          print(f'Cost recorded: \${cost:.4f}')
+          "
+
+      - name: Commit cost data
+        if: always()
+        run: |
+          git config user.name  "flywheel-distiller[bot]"
+          git config user.email "flywheel-distiller@users.noreply.github.com"
+          git add costs.json 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "No cost changes to commit."
+          else
+            git pull --rebase origin main
+            git commit -m "chore: record maintenance cost"
+            git push origin main
+            echo "✅ Cost committed"
+          fi
