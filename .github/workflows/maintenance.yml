@@ -29,22 +29,30 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Set maintenance prompt
+        id: prompt
+        run: |
+          if [ -n "${{ github.event.inputs.task }}" ]; then
+            echo "task=${{ github.event.inputs.task }}" >> $GITHUB_OUTPUT
+          else
+            cat >> $GITHUB_OUTPUT << 'PROMPT'
+          task=You are the Flywheel housekeeping agent. Perform these lightweight maintenance tasks:
+
+          1. Update the "Last updated" date in index.html header to today's date (YYYY-MM-DD format)
+          2. Update CHANGELOG.md — add an entry summarizing recent git commits since the last changelog entry
+          3. Review project-map.md — check if line numbers and structure still match index.html, fix if needed
+          4. Review .claude/skillbank-index.md — remove any malformed entries (entries where the link text is a question or error message rather than a skill name)
+
+          Rules:
+          - Commit all changes directly to main in a single commit with message "chore: daily housekeeping"
+          - Do not open a PR
+          - Do not modify any logic in index.html — only the date string
+          - Do not implement features or fix bugs
+          PROMPT
+          fi
+
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: "--max-turns 15 --model claude-haiku-4-5-20251001 --allowedTools Edit,Write,Bash,GitCreateBranch,GitCommit,GitPush,CreatePullRequest,ReadFile,ListFiles,Glob"
-          prompt: |
-            ${{ github.event.inputs.task || '
-            You are the Flywheel housekeeping agent. Perform these lightweight maintenance tasks:
-
-            1. Update the "Last updated" date in index.html header to today\'s date (YYYY-MM-DD format)
-            2. Update CHANGELOG.md — add an entry summarizing recent git commits since the last changelog entry
-            3. Review project-map.md — check if line numbers and structure still match index.html, fix if needed
-            4. Review .claude/skillbank-index.md — remove any malformed entries (entries where the link text is a question or error message rather than a skill name)
-
-            Rules:
-            - Commit all changes directly to main in a single commit with message "chore: daily housekeeping"
-            - Do not open a PR
-            - Do not modify any logic in index.html — only the date string
-            - Do not implement features or fix bugs
-            ' }}
+          prompt: ${{ steps.prompt.outputs.task }}
