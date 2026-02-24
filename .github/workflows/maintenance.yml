@@ -36,18 +36,24 @@ jobs:
             echo "task=${{ github.event.inputs.task }}" >> $GITHUB_OUTPUT
           else
             cat >> $GITHUB_OUTPUT << 'PROMPT'
-          task=You are the Flywheel housekeeping agent. Perform these lightweight maintenance tasks:
+          task=You are the Flywheel housekeeping and self-healing agent. Perform these tasks in order:
 
-          1. Update the "Last updated" date in index.html header to today's date (YYYY-MM-DD format)
-          2. Update CHANGELOG.md — add an entry summarizing recent git commits since the last changelog entry
-          3. Review project-map.md — check if line numbers and structure still match index.html, fix if needed
-          4. Review .claude/skillbank-index.md — remove any malformed entries (entries where the link text is a question or error message rather than a skill name)
+          ## 1. Housekeeping
+          - Update the "Last updated" date in index.html header to today's date (YYYY-MM-DD format)
+          - Update CHANGELOG.md — add an entry summarizing recent git commits since the last changelog entry
+          - Review project-map.md — check if line numbers and structure still match index.html, fix if needed
+          - Review .claude/skillbank-index.md — remove any malformed entries (entries where the link text is a question or error message rather than a skill name)
 
-          Rules:
-          - Commit all changes directly to main in a single commit with message "chore: daily housekeeping"
-          - Do not open a PR
+          ## 2. Self-healing
+          - Read lessons.md to find issues that have failed 2 or more times (look for repeated FAILURE entries with the same or similar title)
+          - For each repeated failure pattern found, create a new GitHub issue with label "agent-task" that describes the failure pattern clearly and asks the agent to fix the root cause
+          - Do not create duplicate healing issues — check open issues first to avoid creating the same healing issue twice
+
+          ## Rules
+          - Commit housekeeping changes directly to main with message "chore: daily housekeeping"
+          - Do not open a PR for housekeeping changes
           - Do not modify any logic in index.html — only the date string
-          - Do not implement features or fix bugs
+          - Do not implement features or fix bugs directly — create issues for the agent instead
           PROMPT
           fi
 
