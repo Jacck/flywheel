@@ -61,6 +61,9 @@ jobs:
 
       - name: Extract and save maintenance cost
         if: always()
+        env:
+          TASK_LABEL: ${{ github.event.inputs.task || 'daily housekeeping' }}
+          JOB_STATUS: ${{ job.status }}
         run: |
           python3 -c "
           import json, os
@@ -77,12 +80,12 @@ jobs:
           existing = json.loads(costs_file.read_text()) if costs_file.exists() else []
           existing.insert(0, {
               'timestamp': datetime.now(timezone.utc).isoformat(),
-              'issue_title': 'maintenance: ${{ github.event.inputs.task || ''daily housekeeping'' }}',
-              'outcome': '${{ job.status }}',
+              'issue_title': 'maintenance: ' + os.environ.get('TASK_LABEL', 'daily housekeeping'),
+              'outcome': os.environ.get('JOB_STATUS', 'unknown'),
               'cost_usd': cost
           })
           costs_file.write_text(json.dumps(existing, indent=2))
-          print(f'Cost recorded: \${cost:.4f}')
+          print(f'Cost recorded: {cost:.4f}')
           "
 
       - name: Commit cost data
