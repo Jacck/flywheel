@@ -77,7 +77,7 @@ jobs:
           existing = json.loads(costs_file.read_text()) if costs_file.exists() else []
           existing.insert(0, {
               'timestamp': datetime.now(timezone.utc).isoformat(),
-              'issue_title': 'maintenance: ${{ github.event.inputs.task || 'daily housekeeping' }}',
+              'issue_title': 'maintenance: ${{ github.event.inputs.task || ''daily housekeeping'' }}',
               'outcome': '${{ job.status }}',
               'cost_usd': cost
           })
@@ -90,6 +90,7 @@ jobs:
         run: |
           git config user.name  "flywheel-distiller[bot]"
           git config user.email "flywheel-distiller@users.noreply.github.com"
+          git stash 2>/dev/null || true
           git add costs.json 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "No cost changes to commit."
